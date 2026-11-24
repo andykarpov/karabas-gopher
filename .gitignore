@@ -1,0 +1,9 @@
+build/
+obj/
+*.spg
+*.rel
+*.ihx
+*.lst
+*.sym
+*.map
+__pycache__/
