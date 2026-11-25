@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1 (2026-11-25)
 
 - ZiFi32: the network of `gopher.ini` is joined at the start even if the module is already up (it
   joins the network saved in its NVS by its console first, e.g. a phone); the header no longer shows
@@ -8,6 +8,7 @@
 - Music: PT2 (S.V.Bulba universal player), STC (Sound Tracker) and ASC (ASC Sound Master) on the AY,
   with our own STC / ASC players (frame by frame equal to AYFly); the menu cursor follows the track
   that plays.
+- A menu with more than 128 tracks: Enter on a later one plays from it (it played nothing).
 
 ## 1.0 (2026-11-25)
 
