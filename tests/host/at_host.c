@@ -69,6 +69,25 @@ int main(int argc, char **argv)
     return r;
   }
   if (!strcmp(argv[2], "forget")) return at_forget();
+  if (!strcmp(argv[2], "cancel") && argc > 5) {
+    // a big reply cut after ~2 KB (Esc), then a new request on another port must work
+    uint8_t buf[100]; int16_t n; long got = 0; uint8_t r;
+    if ((r = at_tcp_open(argv[3], (uint16_t)atoi(argv[4])))) { printf("open1 r=%d\n", r); return r; }
+    if ((r = at_tcp_send((const uint8_t *)"\r\n", 2))) { printf("send1 r=%d\n", r); return r; }
+    uint16_t t0 = net_ticks();
+    while (got < 2000 && (uint16_t)(net_ticks() - t0) < 50 * 10)
+      if ((n = at_tcp_recv(buf, sizeof(buf))) > 0) got += n; else net_idle();
+    at_tcp_close();
+    if ((r = at_tcp_open(argv[3], (uint16_t)atoi(argv[5])))) { printf("open2 r=%d\n", r); return r; }
+    if ((r = at_tcp_send((const uint8_t *)"\r\n", 2))) { printf("send2 r=%d\n", r); return r; }
+    t0 = net_ticks();
+    while ((n = at_tcp_recv(buf, sizeof(buf))) >= 0) {
+      if (n) { fwrite(buf, 1, n, stdout); t0 = net_ticks(); }
+      else if ((uint16_t)(net_ticks() - t0) > 50 * 10) { fprintf(stderr, "recv timeout\n"); return 3; }
+      else net_idle();
+    }
+    return 0;
+  }
   if (!strcmp(argv[2], "get") && argc > 5) {
     char req[300]; uint8_t buf[100]; int16_t n; long total = 0;
     uint8_t r = at_tcp_open(argv[3], (uint16_t)atoi(argv[4]));

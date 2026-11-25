@@ -46,7 +46,7 @@ uint8_t net_send(const uint8_t *buf, uint16_t n) BANKED;
 uint8_t net_gopher_open(const gurl_t *u) BANKED;
 uint8_t net_zf_reset(void) BANKED;
 uint8_t net_zf_status(void) BANKED;          // the module STATUS of the last failed ZiFi32 command
-int16_t net_recv(uint8_t *buf, uint16_t max) BANKED;           // as at_tcp_recv; -2 = the module failed
+int16_t net_recv(uint8_t *buf, uint16_t max) BANKED;           // as at_tcp_recv; -2 the module failed, -3 Esc
 void net_close(void) BANKED;
 // a short poll of the link (AT+CWJAP? / NETSTATE) -> net_lk; only while the network is free
 void net_link(void) BANKED;

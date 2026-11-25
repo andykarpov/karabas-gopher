@@ -11,11 +11,15 @@ uint8_t dl_open(char *path, uint8_t room) BANKED
   uint8_t r, i, n;
   dpath = 0;
   r = f_open(&df, path, FA_WRITE | FA_CREATE_NEW);
-  if (r == FR_NO_PATH && slash && slash != path) {
-    *slash = 0;
-    r = f_mkdir(path);
-    *slash = '/';
-    if (r && r != FR_EXIST) return r;
+  if (r == FR_NO_PATH) {
+    // make every missing folder of the path: /downloads, /downloads/2026_11_25
+    for (dot = path + 1; *dot; dot++)
+      if (*dot == '/') {
+        *dot = 0;
+        r = f_mkdir(path);
+        *dot = '/';
+        if (r && r != FR_EXIST) return r;
+      }
     r = f_open(&df, path, FA_WRITE | FA_CREATE_NEW);
   }
   if (r == FR_EXIST) {

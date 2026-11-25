@@ -90,6 +90,14 @@ class TestAtDriver(unittest.TestCase):
         self.assertEqual(len(p.stdout), len(BIG))
         self.assertEqual(p.stdout, BIG)
 
+    def test_cancel_then_next(self):
+        big = Server(BIG * 10); big.start()
+        menu = b'1Docs\t/docs\tlocalhost\t70\r\n.\r\n'
+        s2 = Server(menu); s2.start()
+        p = self.run_host('cancel', '127.0.0.1', str(big.port), str(s2.port), timeout=60)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertEqual(p.stdout, menu)
+
     def test_refused(self):
         srv = socket.socket(); srv.bind(('127.0.0.1', 0)); port = srv.getsockname()[1]; srv.close()
         p = self.run_host('get', '127.0.0.1', str(port), '')

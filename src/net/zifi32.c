@@ -49,6 +49,9 @@ __sfr __at(0x77) SPI_CTRL;
 // the chunk / URL buffer: the receive ring of the AT driver (not used while ZiFi32 is the backend)
 static uint16_t chunk_len, chunk_pos;
 static uint8_t at_end, last_status;
+// Esc while a STREAM_READ runs: the chunk is finished first (soft wait), the module stays in step;
+// broken = it did not finish in 3 s: zf_gopher_close resets it
+static uint8_t soft, stop_req, broken;
 
 static uint8_t rd8(uint8_t reg)
 {
@@ -118,7 +121,12 @@ static uint8_t wait(uint16_t timeout, uint8_t also)
     s = rd8(R_STATUS);
     if (s != S_IDLE && s != S_BUSY && s != also) return s;
     if ((uint16_t)(net_ticks() - t0) > timeout) return W_TIMEOUT;
-    if (net_idle()) return W_CANCEL;
+    if (net_idle()) {
+      if (!soft) return W_CANCEL;
+      stop_req = 1;
+      t0 = net_ticks();
+      timeout = 50 * 3;
+    }
   }
 }
 
@@ -310,7 +318,7 @@ uint8_t zf_gopher_open(const char *host, uint16_t port, const char *sel)
   s = wait(50 * 2, S_M2S);
   if (s != S_READY) return result(s);
   chunk_len = chunk_pos = 0;
-  at_end = 0;
+  at_end = stop_req = broken = 0;
   return run(CMD_G_STREAM, 50 * 20);
 }
 
@@ -321,12 +329,21 @@ int16_t zf_gopher_read(uint8_t *buf, uint16_t max)
   if (chunk_pos == chunk_len) {
     if (at_end) return -1;
     cmd(CMD_S_READ);
+    soft = 1;
     s = wait(50 * 32, 0xFF);                           // the firmware waits up to 30 s for data
+    chunk_len = chunk_pos = 0;
+    if (s == S_S2M) {
+      chunk_len = read_data();
+      wait(50, S_S2M);
+    }
+    soft = 0;
+    if (stop_req) {                                    // Esc: the chunk is dropped
+      if (s != S_S2M && s != S_READY) broken = 1;
+      at_end = 1;
+      return -3;
+    }
     if (s == S_READY) { at_end = 1; return -1; }       // DATA_SIZE 0: the end (or 30 s of silence)
     if (s != S_S2M) { result(s); at_end = 1; return -2; }
-    chunk_len = read_data();
-    chunk_pos = 0;
-    wait(50, S_S2M);
     if (!chunk_len) { at_end = 1; return -1; }
   }
   n = chunk_len - chunk_pos;
@@ -336,7 +353,13 @@ int16_t zf_gopher_read(uint8_t *buf, uint16_t max)
   return (int16_t)n;
 }
 
-void zf_gopher_close(void)
+uint8_t zf_gopher_close(void)
 {
+  if (broken) {
+    broken = 0;
+    zf_reset();
+    return 1;
+  }
   run(CMD_S_CLOSE, 50 * 2);
+  return 0;
 }

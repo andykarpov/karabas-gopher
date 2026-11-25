@@ -128,8 +128,10 @@ int16_t net_recv(uint8_t *buf, uint16_t max) BANKED
 
 void net_close(void) BANKED
 {
-  if (net.active == BK_ZIFI32) zf_gopher_close();
-  else at_tcp_close();
+  if (net.active == BK_ZIFI32) {
+    // a reset module has lost the network: joined again from gopher.ini
+    if (zf_gopher_close() && cfg.ssid[0]) zf_join(cfg.ssid, cfg.pass);
+  } else at_tcp_close();
 }
 
 void net_link(void) BANKED

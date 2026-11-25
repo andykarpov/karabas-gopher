@@ -68,9 +68,10 @@ test: build/at_host | build
 	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -o build/test_gopher tests/host/test_gopher.c src/gopher/url.c src/gopher/menu.c src/gopher/cp.c src/gopher/doc.c && ./build/test_gopher
 	@for t in $(HOST_TESTS); do $(HOSTCC) -std=c11 -Wall -Wextra -O1 -o build/test_$$t tests/host/test_$$t.c src/$$t.c \
 	  && ./build/test_$$t || exit 1; done
-	rm -f build/dl.img && mkfs.fat -C build/dl.img 2048 >/dev/null
+	rm -f build/dl.img && mkfs.fat -F 32 -C build/dl.img 40960 >/dev/null
 	iconv -f UTF-8 -t CP866 tests/host/test_dl.c > build/test_dl.866.c
 	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -Isrc -Isrc/fatfs -o build/test_dl build/test_dl.866.c src/dl.c src/fatfs/ff.c src/fatfs/ffunicode.c && ./build/test_dl build/dl.img
+	fsck.fat -n build/dl.img
 	$(PY) -m unittest discover -s tests -p 'test_*.py'
 
 emu: build/gopher.spg

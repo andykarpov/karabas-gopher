@@ -5,7 +5,7 @@
 
 #define DL_FULL 0xFE        // dl_write: the card is full
 
-// creates path ("dir/name"; the dir is made if missing); a taken name gets "_1".."_99" before its
+// creates path ("dir/.../name"; missing folders are made); a taken name gets "_1".."_99" before its
 // extension, written back into path (room = the size of its buffer). FatFs FRESULT, 0 = ok
 uint8_t dl_open(char *path, uint8_t room) BANKED;
 uint8_t dl_write(const uint8_t *buf, uint16_t n) BANKED;

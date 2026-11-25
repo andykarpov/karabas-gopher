@@ -9,6 +9,7 @@ static uint16_t ipd_left;              // raw TCP bytes still to come in the cur
 static uint8_t *ring;               // at_ring_map(): set before each use
 static uint16_t rd, wr;                // ring positions (free running)
 static uint8_t closed, prompt, send_ok, result;   // result: 0xFF while a command runs
+static uint8_t drop;                   // closing: received TCP data is thrown away
 static at_line_fn line_fn;
 static char cmd_buf[2 * KG_WIFI_SSID_MAX + 2 * 64 + 24];
 
@@ -47,7 +48,7 @@ static void end_line(void)
 static void byte_in(uint8_t c)
 {
   if (ipd_left) {
-    ring[wr++ & (AT_RING - 1)] = c;
+    if (!drop) ring[wr++ & (AT_RING - 1)] = c;
     ipd_left--;
     return;
   }
@@ -244,11 +245,32 @@ static char *utoa16(uint16_t v, char *p)
   return p + strlen(p);
 }
 
+// Closes the link and reads out what the module still sends of it (a cancelled download: the module
+// and the FIFO of the core hold KBs). Unread data is dropped first: with a full ring pump() would
+// not read the port and the OK of AT+CIPCLOSE would never come.
+static void flush_link(uint8_t drain)
+{
+  uint16_t t0, last;
+  drop = 1;
+  rd = wr;
+  at_cmd("AT+CIPCLOSE", 100, 0);
+  t0 = last = net_ticks();
+  while (drain && (uint16_t)(net_ticks() - t0) < 50 * 3) {         // until 0.2 s of silence, at most 3 s
+    if (tr->avail()) { pump(); last = net_ticks(); }
+    else if ((uint16_t)(net_ticks() - last) > 10) break;
+  }
+  len = 0;
+  ipd_left = 0;
+  rd = wr = 0;
+  drop = 0;
+  closed = 1;
+}
+
 uint8_t at_tcp_open(const char *host, uint16_t port)
 {
   uint8_t r;
   if (strlen(host) > 100) return AT_ERROR;
-  at_cmd("AT+CIPCLOSE", 50, 0);            // a link left over: ALREADY CONNECTED otherwise
+  flush_link(!closed || ipd_left || RING_USED());   // a link left over: ALREADY CONNECTED otherwise
   at_cmd("AT+CIPMUX=0", 50, 0);
   rd = wr = 0;
   ipd_left = 0;
@@ -298,6 +320,6 @@ int16_t at_tcp_recv(uint8_t *buf, uint16_t max)
 
 void at_tcp_close(void)
 {
-  if (!closed) at_cmd("AT+CIPCLOSE", 50, 0);
+  if (!closed || ipd_left || RING_USED()) flush_link(1);
   closed = 1;
 }

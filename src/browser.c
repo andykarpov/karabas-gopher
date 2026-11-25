@@ -74,7 +74,7 @@ static void bar(const char *mode)
   const char *b = net.active ? bk_shown[net.active] : "нет модуля";
   uint8_t n = (uint8_t)strlen(b);
   txt_fill(0, STATUS_Y, TXT_COLS, ' ', A_BAR);
-  txt_print(1, STATUS_Y, 40, A_BAR, mode);
+  txt_print(1, STATUS_Y, 64, A_BAR, mode);
   txt_print(TXT_COLS - 6 - n, STATUS_Y, n, A_BARHI, b);
   ui_lay_y = STATUS_Y;
   ui_layout();
@@ -306,6 +306,18 @@ static void download(void)
   strcpy(dlpath, cfg.downloads[0] ? cfg.downloads : "/downloads");
   n = (uint8_t)strlen(dlpath);
   if (dlpath[n - 1] != '/') dlpath[n++] = '/';
+  {
+    // a folder per day: /downloads/2026_11_25/ (the Gluk clock; none if it has no date)
+    uint8_t y, mo, d;
+    rtc_date(&y, &mo, &d);
+    if (y < 100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      char *p = dlpath + n;
+      *p++ = '2'; *p++ = '0'; *p++ = '0' + y / 10; *p++ = '0' + y % 10; *p++ = '_';
+      *p++ = '0' + mo / 10; *p++ = '0' + mo % 10; *p++ = '_';
+      *p++ = '0' + d / 10; *p++ = '0' + d % 10; *p++ = '/';
+      n += 11;
+    }
+  }
   url_filename(ui_go.sel, line, 64);
   cp_conv(cfg.charset, line, (uint16_t)strlen(line), dlpath + n, 64);
   for (; dlpath[n]; n++) if (dlpath[n] == '?') dlpath[n] = '_';   // cp_conv marks the unknown by '?'

@@ -35,8 +35,9 @@ static uint8_t receive(const gurl_t *u, uint8_t to_file)
   if (r == NET_NOSEL) return G_NOSEL;
   if (r) return G_NOCONN;
   gopher_t0 = t0 = ticks;
-  while ((n = net_recv(buf, sizeof(buf))) >= 0 || n == -2) {
+  while ((n = net_recv(buf, sizeof(buf))) != -1) {
     if (n == -2) { r = G_TIMEOUT; goto out; }
+    if (n < 0) { r = G_CANCEL; goto out; }      // -3: Esc seen by the ZiFi32 driver
     if (!n) {
       if ((uint16_t)(ticks - t0) > 50 * 20) { r = G_TIMEOUT; goto out; }
       if (net_idle()) { r = G_CANCEL; goto out; }

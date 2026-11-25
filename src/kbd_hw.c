@@ -66,3 +66,15 @@ void rtc_get(uint8_t *h, uint8_t *m)
   *h = hh;
   *m = mm;
 }
+
+// the date of the Gluk CMOS: year 2000 + y, month, day (0 if the clock has none)
+void rtc_date(uint8_t *y, uint8_t *mo, uint8_t *d)
+{
+  uint8_t b;
+  P_EFF7 = 0x80;
+  CMOS_ADDR = 0x0B; b = CMOS_DATA;
+  CMOS_ADDR = 0x09; *y = CMOS_DATA;
+  CMOS_ADDR = 0x08; *mo = CMOS_DATA;
+  CMOS_ADDR = 0x07; *d = CMOS_DATA;
+  if (!(b & 4)) { *y = from_bcd(*y); *mo = from_bcd(*mo); *d = from_bcd(*d); }
+}
