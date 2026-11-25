@@ -12,9 +12,11 @@ typedef struct {                        // 256 bytes: 64 a page, 2 pages
   char name[PL_NAME];
   uint16_t port;
   char type;
+  uint16_t row;                         // play list: the row of the link in its menu
 } track_t;
 
-uint8_t pl_state, pl_count, pl_cur;
+uint8_t pl_state, pl_count, pl_cur, pl_moved;
+uint16_t pl_src;
 static uint16_t pl_t0, pl_played;       // ticks: the start of the current run, frames played before it
 static uint8_t pl_loading, pl_trk, last_sec = 0xFF;   // pl_trk: the track plays on the GS / ZiFi32
 static gurl_t pu;                       // RAM: goes to bank 3
@@ -55,12 +57,15 @@ void mlist_get(uint8_t pg, uint8_t i, gurl_t *u, char *name)
 
 void player_clear(void) { pl_count = 0; }
 
-uint8_t player_add(const gurl_t *u, const char *name)
+uint8_t player_add(const gurl_t *u, const char *name, uint16_t row)
 {
   if (!mlist_put(PG_LIST, pl_count, u, name)) return 0;
+  entry(PG_LIST, pl_count)->row = row;
   pl_count++;
   return 1;
 }
+
+uint16_t player_row(uint8_t i) { return entry(PG_LIST, i)->row; }
 
 static uint8_t ext(const char *e, const char *x)   // x: lower case
 {
@@ -273,6 +278,7 @@ uint8_t player_play(uint8_t i)
   if (i >= pl_count) return G_OK;
   silence();
   pl_cur = i;
+  pl_moved = 1;
   mlist_get(PG_LIST, i, &pu, pname);
   fmt = player_format(pu.sel, (uint8_t)strlen(pu.sel));
   pl_state = PL_STOP;
