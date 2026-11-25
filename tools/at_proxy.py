@@ -247,7 +247,13 @@ def main():
     while True:
         r, _, _ = select.select([fd] + m.sockets(), [], [], 0.05)
         if fd in r:
-            m.feed(os.read(fd, 4096))
+            try:
+                data = os.read(fd, 4096)
+            except OSError as e:
+                sys.exit('at_proxy: %s (the port went away: board reset or MSC?)' % e)
+            if not data and not a.pty:
+                sys.exit('at_proxy: the port closed')
+            m.feed(data)
         m.poll()
 
 
