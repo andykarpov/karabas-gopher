@@ -105,6 +105,7 @@ irq:
         push    bc
         push    de
         push    ix
+        push    iy              ; the PT2 player uses IY
         call    map_music
         call    #0x4003         ; PLAY
         ld      hl, (#0x4009)   ; SETUP bit 7: the end was passed (no loop: muted)
@@ -116,6 +117,7 @@ irq:
         inc     a
         ld      (_pt3_end), a
 1$:     call    unmap_music
+        pop     iy
         pop     ix
         pop     de
         pop     bc
@@ -149,6 +151,7 @@ unmap_music:
 _pt3_cmd::
         di
         push    ix
+        push    iy
         ld      e, a
         ld      d, #0x40
         call    map_music
@@ -159,6 +162,7 @@ _pt3_cmd::
         ld      de, (_pt3_mod2)
         ret                     ; to #4000 + entry, back to 1$
 1$:     call    unmap_music
+        pop     iy
         pop     ix
         ei
         ret

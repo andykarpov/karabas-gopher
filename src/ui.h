@@ -41,7 +41,9 @@ void ui_hint(uint8_t x, uint8_t y, uint8_t w, uint8_t a, uint8_t ak, const char 
 void ui_frame(const char *title, const char *help);
 void ui_layout(void);                  // РУС / LAT at the right of the help line
 uint16_t ui_key(void);                 // waits for a key; Ins switches the layout
-uint16_t ui_key_to(uint16_t frames);   // the same, K_NONE after `frames` frames
+uint16_t ui_key_to(uint16_t frames);
+// called between keys when another track started (the browser sets it around its own ui_key)
+extern void (*ui_on_track)(void);   // the same, K_NONE after `frames` frames
 // edits buf (max characters) in place at x, y, w cells; 1 = Enter, 0 = Esc (buf restored);
 // hidden: 0 plain, 1 password shown as * (Tab shows / hides), 2 plain without the Tab toggle
 uint8_t ui_edit(uint8_t x, uint8_t y, uint8_t w, char *buf, uint8_t max, uint8_t hidden);

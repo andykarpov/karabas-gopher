@@ -434,10 +434,37 @@ static uint8_t sel_url(void)
 static const char *play_error(uint8_t r)
 {
   if (r == G_BIG) return "Модуль слишком большой: только скачать (F10)";
-  if (r == PL_NOTPT3) return "Это не PT3-модуль";
+  if (r == PL_NOTPT3) return "Это не модуль этого формата";
   if (r == PL_NOENG) return "Этот формат здесь не играет: только скачать (F10)";
   if (r == PL_ENGINE) return "GS / ZiFi32 не принял модуль";
   return fetch_error(r);
+}
+
+static uint16_t url_hash(const gurl_t *u)
+{
+  uint16_t h = u->port;
+  const char *s;
+  for (s = u->host; *s; s++) h = h * 31 + (uint8_t)*s;
+  for (s = u->sel; *s; s++) h = h * 31 + (uint8_t)*s;
+  return h;
+}
+
+// another track started: the cursor goes to its link if its menu is shown
+static void follow(void)
+{
+  uint16_t r, rows = gopher_rows();
+  pl_moved = 0;
+  if (cur.mode != M_MENU || pl_state == PL_STOP || pl_src != url_hash(&cur.u)) return;
+  r = player_row(pl_cur);
+  if (r >= rows || r == cur.sel) return;
+  cur.sel = r;
+  if (r < cur.top || r >= cur.top + ROWS) {
+    cur.top = r > ROWS / 2 ? r - ROWS / 2 : 0;
+    if (rows > ROWS && cur.top > rows - ROWS) cur.top = rows - ROWS;
+  }
+  draw_doc();
+  bar_view();
+  hint();
 }
 
 // Enter on a music link: the play list = the music links of this menu, from the selected one
@@ -459,10 +486,12 @@ static void play_menu(void)
     ui_go.sel[it.slen] = 0;
     cp_conv(cfg.charset, it.disp, it.dlen, name, sizeof(name) - 1);
     if (i == cur.sel) at = pl_count;
-    if (!player_add(&ui_go, name)) break;
+    if (!player_add(&ui_go, name, i)) break;
   }
+  pl_src = url_hash(&cur.u);
   bar_view();                                // the status row in the player layout
   r = player_play(at);
+  pl_moved = 0;                              // the cursor is on it already
   bar_view();
   hint();
   if (r != G_OK) status(play_error(r), A_STAT);
@@ -598,7 +627,10 @@ void browser_run(void) BANKED
   draw_all();
   go_home(0);
   for (;;) {
+    if (pl_moved) follow();                  // a track changed while another screen was shown
+    ui_on_track = follow;
     k = ui_key();
+    ui_on_track = 0;
     if (msg_on) status("", A_BG);
     old_top = cur.top;
     old_sel = cur.sel;

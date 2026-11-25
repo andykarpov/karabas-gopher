@@ -38,10 +38,11 @@ __sfr __banked __at(0x2AAF) TS_INTMASK;
 #define PG_IDX        0x50    // 2 pages: its row index
 #define PG_HIST       0x52    // the history (browser.c)
 #define PG_NETBUF     0x53    // the AT receive ring / ZiFi32 chunks (1 KB)
-#define PG_MUSIC      0x54    // 3 pages: the PT3 player at #4000 (SPG) + the module at PT3_MOD
+#define PG_MUSIC      0x54    // 3 pages: an AY player at #4000 (from PG_PLAYERS) + the module at PT3_MOD
 #define PG_LIST       0x57    // 2 pages: the play list (player.c)
 #define PG_PICLIST    0x59    // 2 pages: the pictures of a menu (viewer.c)
 #define PG_PICPAL     0x5B    // the palettes of the two picture buffers (512 bytes each)
+#define PG_PLAYERS    0x5C    // the AY player blobs (SPG; tools/mkplayers.py), one copied into PG_MUSIC
 #define PG_PICA       0x60    // 16 pages: picture buffer A (16c: VPAGE multiple of 8, 256c: of 16)
 #define PG_PICB       0x70    // 16 pages: picture buffer B (the next one in a slide show)
 #define PG_BIG        0x80    // 128 pages (2 MB): a tracker module on its way to the GS / ZiFi32

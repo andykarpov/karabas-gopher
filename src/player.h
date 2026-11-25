@@ -11,14 +11,17 @@ extern uint8_t pl_state, pl_count, pl_cur;
 // the play list: player_clear, then player_add for each track (RAM strings); 0 if it is full
 #define PL_HOST  48
 #define PL_SEL   160
-#define PL_NAME  44
+#define PL_NAME  42
 #define PL_MAX   128
 // a list of links in 2 pages from pg (256-byte entries); RAM pointers
 uint8_t mlist_put(uint8_t pg, uint8_t i, const gurl_t *u, const char *name);
 void mlist_get(uint8_t pg, uint8_t i, gurl_t *u, char *name);
 void player_clear(void);
-uint8_t player_add(const gurl_t *u, const char *name);
-#define PL_NOTPT3 0x20                  // player_play: the file is not a PT3 module
+uint8_t player_add(const gurl_t *u, const char *name, uint16_t row);   // row: its row in the menu
+uint16_t player_row(uint8_t i);         // the menu row of track i
+extern uint16_t pl_src;                 // the menu of the list (browser.c: a hash of its address)
+extern uint8_t pl_moved;                // 1: another track started (the browser moves its cursor there)
+#define PL_NOTPT3 0x20                  // player_play: the file is not a module of its format (PT3 / PT2...)
 #define PL_NOENG  0x21                  // nothing here plays this format (XM / S3M without ZiFi32)
 #define PL_ENGINE 0x22                  // the GS / ZiFi32 did not take the module
 uint8_t player_play(uint8_t i);         // loads and starts track i: a G_* code (G_OK) or PL_NOTPT3
@@ -30,8 +33,10 @@ void player_tick(void);
 // a key of the player (F7, Shift+F7, F8, Shift+F8): 1 if it was one
 uint8_t player_key(uint16_t k);
 void player_draw(void);                 // its part of the status row (when the browser shows it)
-// the music format of a selector by its extension: PF_NONE, PF_PT3, PF_MOD, PF_XM, PF_S3M
-enum { PF_NONE, PF_PT3, PF_MOD, PF_XM, PF_S3M };
+// the music format of a selector by its extension: the AY ones (a player blob each, in the order of
+// PLAYERS in the Makefile), then the trackers of the GS / ZiFi32 (in the order of TRK_* formats)
+enum { PF_NONE, PF_PT3, PF_PT2, PF_STC, PF_ASC, PF_MOD, PF_XM, PF_S3M };
+#define PF_AY(f) ((f) && (f) < PF_MOD)
 uint8_t player_format(const char *sel, uint8_t slen);
 // 1 if this machine plays it (PT3 always; MOD with a GS or ZiFi32; XM / S3M with ZiFi32 0.6.4+)
 uint8_t player_can(uint8_t fmt);

@@ -50,16 +50,33 @@ build/pages.stamp: build/gopher.ihx tools/ihxsplit.py
 	$(PY) tools/ihxsplit.py $< build/gopher.map build/pages
 	touch $@
 
-# the PT3 player of S.V.Bulba at #4000 of page #54 (src/player/pt3.asm, crt0.s calls it)
+# the AY players, each a blob at #4000 with the same entry table (crt0.s calls it in page #54):
+# PT3 of S.V.Bulba (two copies: TurboSound), PT2 (his universal PT2 / PT3 player); all in page
+# PG_PLAYERS (#5C), player.c copies the one of a track into #54
 build/pt3.bin: src/player/pt3.asm src/player/pt3play.asm | build
 	sed 's/module pt3player/module pt3playerb/' src/player/pt3play.asm > build/pt3play_b.asm
 	$(SJASM) --nologo --msg=war --inc=src/player --inc=build $<
+build/pt2.bin: src/player/pt2.asm src/player/ptsplay.asm | build
+	$(SJASM) --nologo --msg=war --inc=src/player $<
+# STC / ASC: players in C (src/player/ay.h), linked on their own at #4000, variables at #5100
+build/player/%.rel: src/player/%.c src/player/ay.h | build
+	@mkdir -p build/player
+	$(SDCC) -mz80 --std-sdcc11 --opt-code-size -c $< -o $@
+build/player/aycrt.rel: src/player/aycrt.s | build
+	@mkdir -p build/player
+	$(SDAS) -plosgff -o $@ $<
+build/%.bin: build/player/aycrt.rel build/player/%.rel tools/ihx2blob.py Makefile
+	$(SDCC) -mz80 --no-std-crt0 --code-loc 0x4000 --data-loc 0x5100 build/player/aycrt.rel build/player/$*.rel -o build/player/$*.ihx
+	$(PY) tools/ihx2blob.py build/player/$*.ihx build/player/$*.map $@
+PLAYERS := build/pt3.bin build/pt2.bin build/stc.bin build/asc.bin
+build/players.bin: $(PLAYERS) tools/mkplayers.py
+	$(PY) tools/mkplayers.py $@ $(PLAYERS)
 
-# the font and the player go straight into their pages (#25, #54: src/ts.h)
-build/gopher.spg: VERSION build/pages.stamp res/font866.bin build/pt3.bin tools/mkspg.py
+# the font and the players go straight into their pages (#25, #5C: src/ts.h)
+build/gopher.spg: VERSION build/pages.stamp res/font866.bin build/players.bin tools/mkspg.py
 	$(PY) tools/mkspg.py $@ --page 0x20 --desc "karabas gopher $(VERSION)" \
 	  $$(for f in build/pages/page*.bin; do p=$${f##*/page}; echo --block 0x$${p%.bin}:$$f; done) \
-	  --block 0x25:res/font866.bin --block 0x54:build/pt3.bin
+	  --block 0x25:res/font866.bin --block 0x5C:build/players.bin
 
 # res/font866.bin = the font of Wild Commander (tslabs zx-evo pentevo/soft/WC/source/FONT32L3.CDB, user's
 # choice 2026-11-25); `make font-psf` makes the older one from a console font instead
@@ -82,6 +99,7 @@ test: build/at_host | build
 	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -Isrc -Isrc/fatfs -o build/test_dl build/test_dl.866.c src/dl.c src/fatfs/ff.c src/fatfs/ffunicode.c && ./build/test_dl build/dl.img
 	fsck.fat -n build/dl.img
 	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -DHOST -Itests/host/shim -Isrc -o build/pic_host tests/host/pic_host.c src/pic.c
+	for p in stc asc; do $(HOSTCC) -std=c11 -Wall -Wextra -O1 -DHOST -o build/ay_$$p tests/host/ay_dump.c src/player/$$p.c || exit 1; done
 	$(PY) -m unittest discover -s tests -p 'test_*.py'
 
 emu: build/gopher.spg
@@ -90,5 +108,18 @@ emu: build/gopher.spg
 clean:
 	rm -rf build
 
-.PHONY: all font font-psf test emu clean
+.PHONY: all font font-psf test emu aytest clean
 .SECONDARY:
+
+# a C player blob on the Z80 in unreal-ng (tests/emu/aybench.c): make aytest P=stc M=tests/data/ay/stc1.stc
+aytest: build/crt0.rel build/text.rel build/$(P).bin tests/emu/aybench.c | build
+	iconv -f UTF-8 -t CP866 tests/emu/aybench.c > build/aybench.866.c
+	set -- $$($(PY) tests/emu/ayref.py $(basename $(M)).regs); \
+	$(SDCC) $(CFLAGS) -DAY_FRAMES=$$1 -DAY_HASH=$$2 -c build/aybench.866.c -o build/aybench.rel
+	$(SDCC) -mz80 --no-std-crt0 --code-loc 0x0100 --data-loc 0x2000 build/crt0.rel build/aybench.rel build/text.rel -o build/aytest.ihx
+	rm -rf build/aypages && $(PY) tools/ihxsplit.py build/aytest.ihx build/aytest.map build/aypages
+	python3 -c "import sys; b=open('build/$(P).bin','rb').read(); m=open('$(M)','rb').read(); open('build/aypage.bin','wb').write(b + bytes(0x1200 - len(b)) + m)"
+	$(PY) tools/mkspg.py build/aytest.spg --page 0x20 --desc aytest \
+	  $$(for f in build/aypages/page*.bin; do p=$${f##*/page}; echo --block 0x$${p%.bin}:$$f; done) \
+	  --block 0x25:res/font866.bin --block 0x54:build/aypage.bin
+	emu-shot unreal --machine TSL --sd $(HOME)/.local/share/emu-shot/tsconf-sd.img --file build/aytest.spg wait:$(or $(WAIT),12) shot:build/aytest.png

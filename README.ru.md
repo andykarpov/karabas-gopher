@@ -36,10 +36,12 @@ Gopher-браузер для TS-Conf (ZX Spectrum): программа `.spg`, �
   Esc прерывает и удаляет недокачанный файл.
 - **Музыка в фоне** (играет, пока ходишь по страницам): Enter на модуле играет всю музыку этого меню
   подряд.
-  - PT3 (и TurboSound PT3) на AY, плеер S.V.Bulba;
+  - PT3 (и TurboSound PT3) на AY, плеер S.V.Bulba; PT2 (его универсальный плеер);
+    STC (Sound Tracker) и ASC (ASC Sound Master) — свои плееры;
   - MOD на General Sound ядра (по умолчанию) или на ZiFi32;
   - XM и S3M на ZiFi32 (прошивка 0.6.4+), без него — только скачать;
-  - F7 пауза, Shift+F7 стоп, F8 / Shift+F8 следующий / предыдущий — из любого экрана.
+  - F7 пауза, Shift+F7 стоп, F8 / Shift+F8 следующий / предыдущий — из любого экрана; курсор меню
+    переходит на трек, который играет.
 - **Картинки**: `.scr` (6912 / 6144), мультиколор `.mc` / `.mlt`, гигаскрин `.img` (без мерцания),
   `.bmp` 4 / 8 бит до 360 x 288. Стрелки — соседние картинки меню, **S** — слайдшоу (5 с на
   картинку, следующая грузится, пока видна текущая).
@@ -108,8 +110,10 @@ python3 tools/at_proxy.py --tty /dev/serial/by-id/usb-Karabas_Go_...-if02
 ```
 make          # build/gopher.spg
 make test     # тесты на ПК (секунды): клавиатура, редактор, INI, разбор gopher, AT-драйвер против
-              # tools/at_proxy.py, скачивание на FatFs (+ fsck.fat), декодеры картинок
+              # tools/at_proxy.py, скачивание на FatFs (+ fsck.fat), декодеры картинок, плееры
+              # STC / ASC покадрово против эталонных дампов
 make emu      # запуск в эмуляторе unreal-ng без окна (emu-shot), снимок build/emu.png
+make aytest P=stc M=tests/data/ay/stc1.stc   # плеер STC / ASC в сборке для Z80, в эмуляторе
 ```
 
 Версия — в файле `VERSION`. Тег `v<версия>` запускает в CI сборку, тесты и публикацию релиза с
@@ -122,7 +126,10 @@ make emu      # запуск в эмуляторе unreal-ng без окна (em
 
 - FatFs R0.15, ChaN (`src/fatfs`): своя лицензия в стиле BSD в файлах.
 - Плеер PT3 S.V.Bulba (Vortex Tracker II, release 7) из SDK tslabs zx-evo
-  (`src/player/pt3play.asm`), freeware, с сохранённым уведомлением автора.
+  (`src/player/pt3play.asm`), freeware, с сохранённым уведомлением автора; его универсальный плеер
+  PT2 / PT3 (`src/player/ptsplay.asm`, из NedoOS, исходно в Vortex Tracker II).
+- Эталонные дампы регистров `tests/data/ay/*.regs` сделаны AYFly (GPL, в репозитории его нет);
+  плееры STC / ASC и тестовые модули — свои.
 - Шрифт 8x8 Wild Commander (`res/font866.bin`, tslabs zx-evo).
 - `src/net/esp_at_parse.*` из karabas-go-firmware (MIT).
 

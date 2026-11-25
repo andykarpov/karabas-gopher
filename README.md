@@ -35,10 +35,12 @@ page; the current one is also in the Karabas release repo:
   Esc cancels and deletes the unfinished file.
 - **Music in the background** (it plays on while you browse): Enter on a module plays all the music
   of that menu one after another.
-  - PT3 (and TurboSound PT3) on the AY chips, player of S.V.Bulba;
+  - PT3 (and TurboSound PT3) on the AY chips, player of S.V.Bulba; PT2 (his universal player);
+    STC (Sound Tracker) and ASC (ASC Sound Master) with our own players;
   - MOD on the General Sound of the core (default) or on ZiFi32;
   - XM and S3M on ZiFi32 (firmware 0.6.4+); without it they can only be downloaded.
-  - F7 pause, Shift+F7 stop, F8 / Shift+F8 next / previous, from any screen.
+  - F7 pause, Shift+F7 stop, F8 / Shift+F8 next / previous, from any screen; the cursor of the
+    menu follows the track that plays.
 - **Pictures**: `.scr` (6912 / 6144), multicolour `.mc` / `.mlt`, gigascreen `.img` (shown without
   flicker), `.bmp` 4 / 8 bits up to 360 x 288. Arrows: the neighbours of the menu, **S**: slide show
   (5 s a picture, the next one loads meanwhile).
@@ -106,8 +108,10 @@ Needs SDCC 4.2 (`sdcc`, `sdasz80`), sjasmplus (for the PT3 player), Python 3 wit
 ```
 make          # build/gopher.spg
 make test     # host tests (seconds): keyboard, editor, INI, gopher parsing, AT driver against
-              # tools/at_proxy.py, downloads on FatFs (+ fsck.fat), the picture decoders
+              # tools/at_proxy.py, downloads on FatFs (+ fsck.fat), the picture decoders, the STC /
+              # ASC players frame by frame against reference dumps
 make emu      # a headless run in the unreal-ng emulator (emu-shot), screenshot build/emu.png
+make aytest P=stc M=tests/data/ay/stc1.stc   # an STC / ASC player built for the Z80, in the emulator
 ```
 
 The version is in `VERSION`. A tag `v<version>` makes the CI build, test and publish a release with
@@ -120,7 +124,10 @@ state of the work in [docs/BACKLOG.md](docs/BACKLOG.md).
 
 - FatFs R0.15 by ChaN (`src/fatfs`): its own BSD-style licence in the files.
 - The PT3 player of S.V.Bulba (Vortex Tracker II, release 7), from the tslabs zx-evo SDK
-  (`src/player/pt3play.asm`), freeware with the author's notice kept.
+  (`src/player/pt3play.asm`), freeware with the author's notice kept; his universal PT2 / PT3 player
+  (`src/player/ptsplay.asm`, from NedoOS, originally in Vortex Tracker II).
+- The reference register dumps `tests/data/ay/*.regs` were made with AYFly (GPL, not in this
+  repository); the STC / ASC players and the test modules are our own.
 - The 8x8 font of Wild Commander (`res/font866.bin`, tslabs zx-evo).
 - `src/net/esp_at_parse.*` from karabas-go-firmware (MIT).
 

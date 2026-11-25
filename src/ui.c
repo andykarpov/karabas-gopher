@@ -80,10 +80,13 @@ void ui_header(void)
 void ui_poll_soon(void) { poll_due = 1; }
 
 // between keys: the clock twice a second (the colon blinks), the link every 15 s
+void (*ui_on_track)(void);
+
 static void tick(void)
 {
   uint16_t t = ticks;
   player_tick();
+  if (pl_moved && ui_on_track) ui_on_track();
   if ((uint16_t)(t - t_clock) >= 25) {
     t_clock = t;
     colon ^= 1;
