@@ -3,6 +3,7 @@
 #include "kbd.h"
 #include "edit.h"
 #include "net/net.h"
+#include "player.h"
 
 static char old[256];
 uint8_t ui_lay_y = TXT_ROWS - 1;
@@ -23,7 +24,7 @@ static const uint8_t glyphs[][9] = {
 void ui_glyphs(void) BANKED
 {
   uint8_t i;
-  TS_PAGE3 = PG_FONT;
+  PAGE3(PG_FONT);
   for (i = 0; i < sizeof(glyphs) / sizeof(glyphs[0]); i++)
     memcpy(WIN3 + glyphs[i][0] * 8, glyphs[i] + 1, 8);
 }
@@ -82,6 +83,7 @@ void ui_poll_soon(void) { poll_due = 1; }
 static void tick(void)
 {
   uint16_t t = ticks;
+  player_tick();
   if ((uint16_t)(t - t_clock) >= 25) {
     t_clock = t;
     colon ^= 1;
@@ -136,7 +138,7 @@ uint16_t ui_key(void)
 {
   uint16_t k;
   for (;;) {
-    if ((k = kbd_get())) break;
+    if ((k = kbd_get()) && !player_key(k)) break;   // F7 / F8: the player, from any screen
     tick();
     __asm__("halt");
   }

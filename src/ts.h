@@ -34,6 +34,10 @@ __sfr __banked __at(0x2AAF) TS_INTMASK;
 #define PG_IDX        0x50    // 2 pages: its row index
 #define PG_HIST       0x52    // the history (browser.c)
 #define PG_NETBUF     0x53    // the AT receive ring / ZiFi32 chunks (1 KB)
+#define PG_MUSIC      0x54    // 3 pages: the PT3 player at #4000 (SPG) + the module at PT3_MOD
+#define PG_LIST       0x57    // the play list (player.c)
+#define PT3_MOD       0x4900  // the module in windows 1..3 while the player runs
+#define PT3_MAX       (0xC000 - PT3_MOD)
 #define PG_TEXT       0x24    // text mode: chars + attributes (VPAGE)
 #define PG_FONT       0x25    // its font: VPAGE ^ 1, 2 KB at the start
 #define WIN3          ((uint8_t *)0xC000)
@@ -46,3 +50,8 @@ __sfr __banked __at(0x2AAF) TS_INTMASK;
 #define TXT_ATTR      128
 
 extern volatile uint16_t ticks;   // frames since start (IM 1 handler of crt0.s)
+
+// Window 3: always through PAGE3 (the shadow first): the interrupt maps the music pages into
+// windows 1..3 for the player and puts back page3 and the bank (crt0.s)
+extern volatile uint8_t page3;
+#define PAGE3(p) do { page3 = (p); TS_PAGE3 = page3; } while (0)

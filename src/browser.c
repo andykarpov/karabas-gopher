@@ -9,6 +9,7 @@
 #include "browser.h"
 #include "bm.h"
 #include "dl.h"
+#include "player.h"
 #include "gopher/gopher.h"
 #include "gopher/url.h"
 #include "gopher/menu.h"
@@ -74,10 +75,11 @@ static void bar(const char *mode)
   const char *b = net.active ? bk_shown[net.active] : "нет модуля";
   uint8_t n = (uint8_t)strlen(b);
   txt_fill(0, STATUS_Y, TXT_COLS, ' ', A_BAR);
-  txt_print(1, STATUS_Y, 64, A_BAR, mode);
+  txt_print(1, STATUS_Y, pl_state != PL_STOP ? 32 : 64, A_BAR, mode);
   txt_print(TXT_COLS - 6 - n, STATUS_Y, n, A_BARHI, b);
   ui_lay_y = STATUS_Y;
   ui_layout();
+  player_draw();
 }
 
 static void bar_view(void)
@@ -113,7 +115,7 @@ void browse_progress(void) BANKED
     strcat(disp, nb);
     strcat(disp, " КБ/с");
   }
-  strcat(disp, "   (Esc \xc4 прервать)");
+  if (pl_state == PL_STOP) strcat(disp, "   (Esc \xc4 прервать)");
   bar(disp);
 }
 
@@ -200,10 +202,13 @@ static void hint(void)
       case 'h': h = "~Enter~ показать адрес  ~BS~ назад"; break;
       case '8': case 'T': h = "telnet не поддерживается  ~BS~ назад"; break;
       case '0': h = "~Enter~ читать  ~F10~ скачать  ~BS~ назад"; break;
-      default: h = "~Enter~ / ~F10~ скачать  ~BS~ назад";
+      default: h = player_playable(it.sel, it.slen) ? "~Enter~ играть  ~F10~ скачать  ~BS~ назад" :
+                   "~Enter~ / ~F10~ скачать  ~BS~ назад";
     }
   txt_fill(0, HINT_Y, TXT_COLS, ' ', A_HINT);
-  ui_hint(1, HINT_Y, TXT_COLS - 2, A_HINT, A_HINTK, h);
+  ui_hint(1, HINT_Y, 44, A_HINT, A_HINTK, h);
+  if (pl_state != PL_STOP)
+    ui_hint(TXT_COLS - 34, HINT_Y, 33, A_HINT, A_HINTK, "~F7~ пауза ~F8~ дальше ~Shift+F7~ стоп");
 }
 
 static void draw_all(void)
@@ -222,7 +227,7 @@ static void hist_push(void)
 {
   hist_t *h = (hist_t *)WIN3;
   uint8_t max = (uint8_t)(0x4000 / sizeof(hist_t));
-  TS_PAGE3 = PG_HIST;
+  PAGE3(PG_HIST);
   if (nhist == max) { memmove(h, h + 1, (max - 1) * sizeof(hist_t)); nhist--; }
   memcpy(h + nhist++, &cur, sizeof(hist_t));
 }
@@ -230,7 +235,7 @@ static void hist_push(void)
 static uint8_t hist_pop(hist_t *out)
 {
   if (!nhist) return 0;
-  TS_PAGE3 = PG_HIST;
+  PAGE3(PG_HIST);
   memcpy(out, (hist_t *)WIN3 + --nhist, sizeof(hist_t));
   return 1;
 }
@@ -412,8 +417,46 @@ static uint8_t sel_url(void)
   return 1;
 }
 
+static const char *play_error(uint8_t r)
+{
+  if (r == G_BIG) return "Модуль больше 45 КБ: только скачать (F10)";
+  if (r == PL_NOTPT3) return "Это не PT3-модуль";
+  return fetch_error(r);
+}
+
+// Enter on a PT3 link: the play list = the PT3 links of this menu, from the selected one
+static void play_menu(void)
+{
+  gitem_t it;
+  uint16_t i, rows = gopher_rows();
+  uint8_t at = 0, r, k;
+  player_stop();
+  player_clear();
+  for (i = 0; i < rows; i++) {
+    if (!row_item(i, &it) || !menu_link(it.type) || !player_playable(it.sel, it.slen)) continue;
+    memset(&ui_go, 0, sizeof(ui_go));
+    for (k = 0; k < it.hlen && k < URL_HOST - 1; k++) ui_go.host[k] = it.host[k];
+    if (!ui_go.host[0]) memcpy(ui_go.host, cur.u.host, URL_HOST);
+    ui_go.port = it.port;
+    ui_go.type = it.type;
+    memcpy(ui_go.sel, it.sel, it.slen);
+    ui_go.sel[it.slen] = 0;
+    cp_conv(cfg.charset, it.disp, it.dlen, name, sizeof(name) - 1);
+    if (i == cur.sel) at = pl_count;
+    if (!player_add(&ui_go, name)) break;
+  }
+  bar_view();                                // the status row in the player layout
+  r = player_play(at);
+  bar_view();
+  hint();
+  if (r != G_OK) status(play_error(r), A_STAT);
+}
+
 static void open_sel(void)
 {
+  gitem_t it;
+  if (cur.mode == M_MENU && cur.sel != 0xFFFF && row_item(cur.sel, &it) && it.type != '1' &&
+      it.type != '7' && player_playable(it.sel, it.slen)) { play_menu(); return; }
   if (!sel_url()) return;
   if (cur.mode == M_BOOK) { open_url(1); return; }
   if (ui_go.type == '7') {

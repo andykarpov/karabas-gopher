@@ -38,6 +38,6 @@ const transport_t tr_rs232 = { r_avail, r_read, r_room, r_write, r_clear };
 
 uint8_t *at_ring_map(void)
 {
-  TS_PAGE3 = PG_NETBUF;
+  PAGE3(PG_NETBUF);
   return WIN3;
 }

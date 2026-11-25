@@ -36,7 +36,7 @@ void txt_init(void)
 void txt_clear(uint8_t attr)
 {
   uint8_t y;
-  TS_PAGE3 = PG_TEXT;
+  PAGE3(PG_TEXT);
   for (y = 0; y < TXT_ROWS; y++) {
     memset(WIN3 + y * TXT_LINE, ' ', TXT_COLS);
     memset(WIN3 + y * TXT_LINE + TXT_ATTR, attr, TXT_COLS);
@@ -54,7 +54,7 @@ void txt_putc(char c)
   if (c == '\n') { cur_x = 0; cur_y++; return; }
   if (cur_x >= TXT_COLS) { cur_x = 0; cur_y++; }
   if (cur_y >= TXT_ROWS) return;
-  TS_PAGE3 = PG_TEXT;
+  PAGE3(PG_TEXT);
   p = WIN3 + cur_y * TXT_LINE + cur_x;
   p[0] = (uint8_t)c;
   p[TXT_ATTR] = cur_attr;
@@ -71,7 +71,7 @@ void txt_fill(uint8_t x, uint8_t y, uint8_t n, char c, uint8_t attr)
   uint8_t *p;
   if (y >= TXT_ROWS || x >= TXT_COLS) return;
   if (n > TXT_COLS - x) n = TXT_COLS - x;
-  TS_PAGE3 = PG_TEXT;
+  PAGE3(PG_TEXT);
   p = WIN3 + y * TXT_LINE + x;
   memset(p, c, n);
   memset(p + TXT_ATTR, attr, n);
@@ -83,7 +83,7 @@ uint8_t txt_print(uint8_t x, uint8_t y, uint8_t w, uint8_t attr, const char *s)
   uint8_t *p, i = 0;
   if (y >= TXT_ROWS || x >= TXT_COLS) return 0;
   if (w > TXT_COLS - x) w = TXT_COLS - x;
-  TS_PAGE3 = PG_TEXT;
+  PAGE3(PG_TEXT);
   p = WIN3 + y * TXT_LINE + x;
   for (; i < w && s[i]; i++) p[i] = (uint8_t)s[i];
   if (i < w) memset(p + i, ' ', w - i);
@@ -94,6 +94,6 @@ uint8_t txt_print(uint8_t x, uint8_t y, uint8_t w, uint8_t attr, const char *s)
 void txt_set_attr(uint8_t x, uint8_t y, uint8_t attr)
 {
   if (y >= TXT_ROWS || x >= TXT_COLS) return;
-  TS_PAGE3 = PG_TEXT;
+  PAGE3(PG_TEXT);
   WIN3[y * TXT_LINE + TXT_ATTR + x] = attr;
 }

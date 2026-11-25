@@ -51,7 +51,7 @@ uint8_t cfg_load(void) BANKED
   uint8_t r;
 
   cfg_defaults();
-  TS_PAGE3 = PG_SCRATCH;
+  PAGE3(PG_SCRATCH);
   ini_init(&ini, ini_buf, INI_CAP, 0);
   r = f_open(&f, CFG_PATH, FA_READ);
   if (r) return r;
@@ -78,7 +78,7 @@ uint8_t cfg_save(void) BANKED
   UINT n;
   uint8_t r;
 
-  TS_PAGE3 = PG_SCRATCH;
+  PAGE3(PG_SCRATCH);
   if (!ini.len) {
     strcpy(ini_buf, template);
     ini_init(&ini, ini_buf, INI_CAP, sizeof(template) - 1);
@@ -126,7 +126,7 @@ uint8_t cfg_zifi_read(void) BANKED
   UINT n;
   char *p, *e;
   zifi_ssid[0] = zifi_pass[0] = 0;
-  TS_PAGE3 = PG_SCRATCH;
+  PAGE3(PG_SCRATCH);
   if (f_open(&f, ZIFI_INI, FA_READ)) return 0;
   if (f_read(&f, ini_buf, INI_CAP - 1, &n)) n = 0;
   f_close(&f);

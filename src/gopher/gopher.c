@@ -13,11 +13,28 @@ static uint8_t buf[128];
 
 uint8_t *doc_map(uint8_t page)
 {
-  TS_PAGE3 = page >= DOC_IDX ? PG_IDX + (page - DOC_IDX) : PG_DOC + page;
+  PAGE3(page >= DOC_IDX ? PG_IDX + (page - DOC_IDX) : PG_DOC + page);
   return WIN3;
 }
 
-// to_file 0: into the document, 1: a file, 2: a text file (its "." line is cut)
+// the music pages (PT3_MOD on): n bytes at offset off of the module; 0 if it does not fit
+static uint8_t to_music(uint16_t off, const uint8_t *src, uint16_t n)
+{
+  uint16_t a, o, k;
+  if (off + n > PT3_MAX || off + n < off) return 0;
+  a = PT3_MOD - 0x4000 + off;
+  while (n) {
+    o = a & 0x3FFF;
+    k = 0x4000 - o;
+    if (k > n) k = n;
+    PAGE3(PG_MUSIC + (a >> 14));
+    memcpy(WIN3 + o, src, k);
+    src += k; a += k; n -= k;
+  }
+  return 1;
+}
+
+// to_file 0: into the document, 1: a file, 2: a text file (its "." line is cut), 3: the music pages
 static uint8_t receive(const gurl_t *u, uint8_t to_file)
 {
   uint8_t r;
@@ -44,8 +61,10 @@ static uint8_t receive(const gurl_t *u, uint8_t to_file)
       continue;
     }
     t0 = ticks;
+    if (to_file == 3 && !to_music((uint16_t)gopher_bytes, buf, (uint16_t)n)) { r = G_BIG; goto out; }
     gopher_bytes += (uint16_t)n;
     if (!to_file) doc_append(buf, (uint16_t)n);   // a full document drops the rest, the link is read out
+    else if (to_file == 3) ;
     else {
       if ((gopher_fr = dl_write(buf, (uint16_t)n))) { r = G_WRITE; goto out; }
       if (n >= 5) memcpy(tail, buf + n - 5, 5);
@@ -57,6 +76,7 @@ static uint8_t receive(const gurl_t *u, uint8_t to_file)
 out:
   net_close();
   if (!to_file) doc_end();
+  else if (to_file == 3) ;
   else if (r == G_OK) {
     // a text file ends with "." on its own line: not part of the file
     uint8_t cut = to_file == 2 && !memcmp(tail + 2, ".\r\n", 3) &&
@@ -90,3 +110,9 @@ uint8_t gopher_full(void) BANKED { return doc_full(); }
 void gopher_doc_reset(uint8_t cs, uint8_t wrap) BANKED { doc_reset(cs, wrap); }
 void gopher_doc_append(const uint8_t *b, uint16_t n) BANKED { doc_append(b, n); }
 void gopher_doc_end(void) BANKED { doc_end(); }
+
+uint8_t gopher_load(const gurl_t *u) BANKED
+{
+  gopher_saving = 2;
+  return receive(u, 3);
+}
