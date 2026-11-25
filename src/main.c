@@ -2,6 +2,7 @@
 #include "ts.h"
 #include "text.h"
 #include "kbd.h"
+#include "ui.h"
 #include "config.h"
 #include "settings.h"
 #include "netui.h"
@@ -21,6 +22,7 @@ void main(void)
 {
   uint8_t r;
   txt_init();
+  ui_glyphs();
   kbd_init();
   __asm__("ei");
 

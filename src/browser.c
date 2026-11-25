@@ -14,9 +14,12 @@
 #include "gopher/cp.h"
 #include "net/net.h"
 
-#define TOP_Y     1               // first row of the document
-#define ROWS      (TXT_ROWS - 3)  // 27 rows: 1..27, row 28 = status, 29 = help
-#define STATUS_Y  (TXT_ROWS - 2)
+// rows (docs/PLAN.md 8): 0 address + header, 1..26 document, 27 status, 28 hints, 29 messages
+#define TOP_Y     1
+#define ROWS      (TXT_ROWS - 4)
+#define STATUS_Y  (TXT_ROWS - 3)
+#define HINT_Y    (TXT_ROWS - 2)
+#define MSG_Y     (TXT_ROWS - 1)
 #define TAG_W     5
 
 #define A_INFO   ATTR(COL_WHITE, COL_BLUE)
@@ -24,6 +27,10 @@
 #define A_TAG    ATTR(COL_GREY, COL_BLUE)
 #define A_ERRL   ATTR(COL_BRED, COL_BLUE)
 #define A_STAT   ATTR(COL_BYELLOW, COL_BLUE)
+#define A_BAR    ATTR(COL_BLACK, COL_CYAN)
+#define A_BARHI  ATTR(COL_BWHITE, COL_CYAN)
+#define A_HINT   ATTR(COL_WHITE, COL_BLUE)
+#define A_HINTK  ATTR(COL_BYELLOW, COL_BLUE)
 
 enum { M_MENU, M_TEXT, M_BOOK };
 
@@ -37,31 +44,56 @@ static hist_t cur;                // what is shown
 gurl_t ui_go;                     // where to go next (also the address of the test screen)
 static char line[300], disp[84], query[80], name[61];
 static char link_name[61];      // the text of the link that led to the page shown (bookmark name)
-static uint8_t nhist;
+static uint8_t nhist, msg_on;
+static const char *const bk_shown[BK_COUNT] = { "", "ZiFi32", "ZiFi", "USB" };
 
 // ---- small helpers
 
+// row 29: a message (it goes at the next key), else the keys of the browser
 static void status(const char *m, uint8_t a)
 {
-  txt_fill(0, STATUS_Y, TXT_COLS, ' ', A_BG);
-  txt_print(1, STATUS_Y, TXT_COLS - 2, a, m);
+  txt_fill(0, MSG_Y, TXT_COLS, ' ', A_BG);
+  msg_on = m[0] != 0;
+  if (msg_on) txt_print(1, MSG_Y, TXT_COLS - 2, a, m);
+  else ui_hint(1, MSG_Y, TXT_COLS - 2, A_HINT, A_HINTK, cur.mode == M_BOOK ?
+    "~F2~ адрес  ~F3~ домой  ~F9~ сеть" :
+    "~F2~ адрес  ~F3~ домой  ~F4~ закладки  ~F5~ обновить  ~F6~ +закладка  ~F9~ сеть");
 }
 
 static void title(void)
 {
   if (cur.mode == M_BOOK) strcpy(line, "Закладки");
-  else url_format(&cur.u, line, TXT_COLS - 2);
-  txt_fill(0, 0, TXT_COLS, ' ', A_TITLE);
-  txt_print(1, 0, TXT_COLS - 2, A_TITLE, line);
+  else url_format(&cur.u, line, HDR_X - 2);
+  ui_title(line);
 }
 
-static void help(void)
+// row 27: the mode at the left (the player will go in the middle), the backend and РУС / LAT at the right
+static void bar(const char *mode)
 {
-  txt_fill(0, TXT_ROWS - 1, TXT_COLS, ' ', A_HELP);
-  txt_print(1, TXT_ROWS - 1, TXT_COLS - 7, A_HELP, cur.mode == M_BOOK ?
-    "Enter открыть  Del удалить  BS назад  F2 адрес  F3 домой  F9 сеть" :
-    "BS назад F2 адрес F3 домой F4 закладки F5 обновить F6 +закладка F9 сеть");
+  const char *b = net.active ? bk_shown[net.active] : "нет модуля";
+  uint8_t n = (uint8_t)strlen(b);
+  txt_fill(0, STATUS_Y, TXT_COLS, ' ', A_BAR);
+  txt_print(1, STATUS_Y, 40, A_BAR, mode);
+  txt_print(TXT_COLS - 6 - n, STATUS_Y, n, A_BARHI, b);
+  ui_lay_y = STATUS_Y;
   ui_layout();
+}
+
+static void bar_view(void)
+{
+  uint16_t rows = gopher_rows(), last = cur.top + ROWS;
+  char nb[12];
+  strcpy(disp, cur.mode == M_BOOK ? "Закладки" : cur.mode == M_TEXT ? "Текст" : "Меню");
+  if (rows) {
+    if (last > rows) last = rows;
+    ui_num(nb, "  ", (int16_t)(cur.top + 1));
+    strcat(disp, nb);
+    ui_num(nb, "\xc4", (int16_t)last);
+    strcat(disp, nb);
+    ui_num(nb, " из ", (int16_t)rows);
+    strcat(disp, nb);
+  }
+  bar(disp);
 }
 
 void browse_progress(void) BANKED
@@ -69,7 +101,7 @@ void browse_progress(void) BANKED
   uint32_t k = gopher_bytes >> 10;           // whole KB: no 32-bit printf
   ui_num(disp, "Приём... КБ: ", (int16_t)(k > 30000 ? 30000 : k));
   strcat(disp, "   (Esc \xc4 прервать)");
-  status(disp, A_STAT);
+  bar(disp);
 }
 
 static const char *tag(char t)
@@ -141,12 +173,34 @@ static void draw_doc(void)
   for (y = 0; y < ROWS; y++) draw_row(cur.top + y, TOP_Y + y);
 }
 
+// row 28: what the selected item does (the player keys will go at the right)
+static void hint(void)
+{
+  gitem_t it;
+  const char *h = "~BS~ назад";
+  if (cur.mode == M_TEXT) h = "~\x18\x19 PgUp PgDn~ листать  ~BS~ назад";
+  else if (cur.mode == M_BOOK) { if (cur.sel != 0xFFFF) h = "~Enter~ открыть  ~Del~ удалить  ~BS~ назад"; }
+  else if (cur.sel != 0xFFFF && row_item(cur.sel, &it))
+    switch (it.type) {
+      case '1': h = "~Enter~ открыть  ~BS~ назад"; break;
+      case '0': h = "~Enter~ читать  ~BS~ назад"; break;
+      case '7': h = "~Enter~ искать  ~BS~ назад"; break;
+      case 'h': h = "~Enter~ показать адрес  ~BS~ назад"; break;
+      case '8': case 'T': h = "telnet не поддерживается  ~BS~ назад"; break;
+      default: h = "файл: скачивание \xc4 в следующей версии  ~BS~ назад";
+    }
+  txt_fill(0, HINT_Y, TXT_COLS, ' ', A_HINT);
+  ui_hint(1, HINT_Y, TXT_COLS - 2, A_HINT, A_HINTK, h);
+}
+
 static void draw_all(void)
 {
   txt_clear(A_BG);
   title();
-  help();
   draw_doc();
+  bar_view();
+  hint();
+  status("", A_BG);
 }
 
 // ---- history (page PG_HIST: hist_t entries)
@@ -228,11 +282,11 @@ static uint8_t open_url(uint8_t push)
   uint8_t r, mode = ui_go.type == '0' ? M_TEXT : M_MENU;
   if (ui_go.type != '0' && ui_go.type != '1' && ui_go.type != '7') {
     status(ui_go.type == '8' || ui_go.type == 'T' ? "Telnet не поддерживается" :
-           "Загрузка файлов \xc4 в Ф5", A_STAT);
+           "Скачивание файлов \xc4 в следующей версии", A_STAT);
     return 0;
   }
   if (push && cur.u.host[0]) hist_push();
-  status("Соединение... (Esc \xc4 прервать)", A_STAT);
+  bar("Соединение... (Esc \xc4 прервать)");
   r = gopher_fetch(&ui_go, mode == M_TEXT ? TXT_COLS : 0);
   memcpy(&cur.u, &ui_go, sizeof(gurl_t));
   cur.mode = mode;
@@ -250,13 +304,10 @@ static uint8_t open_url(uint8_t push)
       disp[n + 10] = hx[st & 15];
     }
     status(disp, A_STAT);
+    ui_poll_soon();                          // the link may be down: the header shows it soon
   }
   else if (gopher_full()) status("Документ слишком большой: показано начало", A_STAT);
   else if (!gopher_rows()) status("Пусто", A_STAT);
-  else {
-    ui_num(disp, "Строк: ", (int16_t)gopher_rows());
-    status(disp, A_DIM);
-  }
   return 1;
 }
 
@@ -288,7 +339,7 @@ static void open_sel(void)
   if (it.type == '7') {
     query[0] = 0;
     status("Поиск:", A_STAT);
-    if (!ui_edit(8, STATUS_Y, TXT_COLS - 9, query, sizeof(query) - 1, 2) || !query[0]) { status("", A_BG); return; }
+    if (!ui_edit(8, MSG_Y, TXT_COLS - 9, query, sizeof(query) - 1, 2) || !query[0]) { status("", A_BG); return; }
     if (strlen(ui_go.sel) + strlen(query) + 2 > URL_SEL) { status("Слишком длинно", A_STAT); return; }
     strcat(ui_go.sel, "\t");
     strcat(ui_go.sel, query);
@@ -317,7 +368,7 @@ static void add_bookmark(void)
   if (link_name[0]) strcpy(name, link_name);
   else url_format(&cur.u, name, sizeof(name));
   status("Название:", A_STAT);
-  if (!ui_edit(11, STATUS_Y, TXT_COLS - 12, name, sizeof(name) - 1, 2)) { status("", A_BG); return; }
+  if (!ui_edit(11, MSG_Y, TXT_COLS - 12, name, sizeof(name) - 1, 2)) { status("", A_BG); return; }
   url_format(&cur.u, line, 280);
   strcat(line, "\t");
   strcat(line, name);
@@ -330,7 +381,7 @@ static void ask_url(void)
   url_format(&cur.u, line, sizeof(line));
   if (!cur.u.host[0]) strcpy(line, "gopher://");
   status("Адрес:", A_STAT);
-  if (!ui_edit(8, STATUS_Y, TXT_COLS - 9, line, 255, 2)) { status("", A_BG); return; }
+  if (!ui_edit(8, MSG_Y, TXT_COLS - 9, line, 255, 2)) { status("", A_BG); return; }
   if (!url_parse(line, &ui_go)) { status("Неверный адрес", A_STAT); return; }
   link_name[0] = 0;
   open_url(1);
@@ -349,6 +400,8 @@ static void go_back(void)
     if (cur.top >= gopher_rows()) cur.top = 0;
     if (cur.mode != M_TEXT && (cur.sel >= gopher_rows() || !is_link(cur.sel))) first_link();
     draw_doc();
+    bar_view();
+    hint();
   }
 }
 
@@ -368,6 +421,7 @@ void browser_run(void) BANKED
   go_home(0);
   for (;;) {
     k = ui_key();
+    if (msg_on) status("", A_BG);
     old_top = cur.top;
     old_sel = cur.sel;
     switch (k) {
@@ -384,12 +438,20 @@ void browser_run(void) BANKED
       case K_F1 + 3: open_bookmarks(1); continue;
       case K_F1 + 4:
         if (cur.mode == M_BOOK) open_bookmarks(0);
-        else { memcpy(&ui_go, &cur.u, sizeof(gurl_t)); old_top = cur.top; open_url(0); cur.top = old_top; draw_doc(); }
+        else {
+          memcpy(&ui_go, &cur.u, sizeof(gurl_t));
+          old_top = cur.top;
+          open_url(0);
+          if (old_top < gopher_rows()) { cur.top = old_top; if (cur.mode != M_TEXT) first_link(); }
+          draw_doc();
+          bar_view();
+          hint();
+        }
         continue;
       case K_F1 + 5: add_bookmark(); continue;
       case K_DEL:
         if (cur.mode == M_BOOK && cur.sel != 0xFFFF) {
-          if (ui_ask(STATUS_Y, "Удалить закладку?  Enter \xc4 да, Esc \xc4 нет")) {
+          if (ui_ask(MSG_Y, "Удалить закладку?  Enter \xc4 да, Esc \xc4 нет")) {
             bm_delete(cur.sel);
             open_bookmarks(0);
           }
@@ -397,14 +459,16 @@ void browser_run(void) BANKED
         continue;
       case K_F1 + 8:
         netui_run();
+        ui_poll_soon();
         draw_all();
         continue;
       default: continue;
     }
-    if (cur.top != old_top) draw_doc();
+    if (cur.top != old_top) { draw_doc(); bar_view(); }
     else if (cur.sel != old_sel) {
       if (old_sel != 0xFFFF && old_sel >= cur.top && old_sel < cur.top + ROWS) draw_row(old_sel, TOP_Y + old_sel - cur.top);
       if (cur.sel != 0xFFFF) draw_row(cur.sel, TOP_Y + cur.sel - cur.top);
     }
+    if (cur.sel != old_sel) hint();
   }
 }

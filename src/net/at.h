@@ -33,6 +33,8 @@ typedef struct {
 } at_status_t;
 
 uint8_t at_status(at_status_t *st);
+// the joined network only: ssid ("" = none) and its rssi (0 = unknown); for the header poll
+uint8_t at_link(char *ssid, int8_t *rssi);
 // the networks around, strongest first, at most AT_APS
 uint8_t at_scan(kg_wifi_ap_t *aps, uint8_t *count);
 // joins and keeps the network in the module (AT+CWJAP + AT+CWAUTOCONN=1); *err = the +CWJAP code

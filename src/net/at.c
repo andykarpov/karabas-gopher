@@ -157,6 +157,33 @@ uint8_t at_status(at_status_t *st)
   return AT_OK;
 }
 
+// ---- the link only (the header poll): AT+CWJAP? -> ssid and rssi (0 = unknown)
+static char *lk_ssid;
+static int8_t *lk_rssi;
+static void link_line(const char *l)
+{
+  const char *p;
+  uint8_t commas = 0;
+  if (!kg_esp_parse_cwjap(l, lk_ssid, KG_WIFI_SSID_MAX + 1)) return;
+  // +CWJAP:"ssid","mac",ch,rssi: skip the ssid (\\ escapes), then the rssi follows the 3rd comma
+  for (p = l + 8; *p && *p != '"'; p++) if (*p == '\\') p++;
+  for (; *p && commas < 3; p++) if (*p == ',') commas++;
+  if (commas == 3 && *p == '-') {
+    int16_t v = 0;
+    for (p++; *p >= '0' && *p <= '9'; p++) v = v * 10 + (*p - '0');
+    if (v > 0 && v < 128) *lk_rssi = (int8_t)-v;
+  }
+}
+
+uint8_t at_link(char *ssid, int8_t *rssi)
+{
+  ssid[0] = 0;
+  *rssi = 0;
+  lk_ssid = ssid;
+  lk_rssi = rssi;
+  return at_cmd("AT+CWJAP?", 100, link_line);
+}
+
 // ---- scan / join / forget
 static kg_wifi_ap_t *aps_out;
 static uint8_t *aps_n;

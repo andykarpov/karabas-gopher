@@ -18,7 +18,18 @@ typedef struct {
   zf_info_t zf;             // ZiFi32 firmware
 } net_t;
 
+// the link for the header (net_link): state, network, signal, security
+enum { LK_NONE, LK_DOWN, LK_JOINING, LK_UP };   // LK_NONE: no backend / no Wi-Fi (USB without one)
+typedef struct {
+  uint8_t state;
+  char ssid[KG_WIFI_SSID_MAX + 1];
+  int8_t rssi;              // 0 = unknown
+  uint8_t ecn;              // 0 open, 0xFF unknown (from the last scan)
+} net_link_t;
+
 extern net_t net;
+extern net_link_t net_lk;
+extern uint8_t net_bg;     // netplat.c: 1 = a background poll, net_idle leaves the keys alone
 
 void net_detect(void) BANKED;                 // probes ZiFi and USB serial (ZiFi32: Ф4)
 uint8_t net_use(uint8_t backend) BANKED;      // 0 if that backend has no modem
@@ -37,3 +48,5 @@ uint8_t net_zf_reset(void) BANKED;
 uint8_t net_zf_status(void) BANKED;          // the module STATUS of the last failed ZiFi32 command
 int16_t net_recv(uint8_t *buf, uint16_t max) BANKED;           // as at_tcp_recv; -2 = the module failed
 void net_close(void) BANKED;
+// a short poll of the link (AT+CWJAP? / NETSTATE) -> net_lk; only while the network is free
+void net_link(void) BANKED;

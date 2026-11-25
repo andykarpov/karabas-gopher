@@ -51,6 +51,13 @@ int main(int argc, char **argv)
     printf("r=%d version=%s mode=%d flow=%d ssid=%s ip=%s\n", r, st.version, st.mode, st.flow, st.ssid, st.ip);
     return r;
   }
+  if (!strcmp(argv[2], "link")) {
+    char ssid[KG_WIFI_SSID_MAX + 1];
+    int8_t rssi;
+    uint8_t r = at_link(ssid, &rssi);
+    printf("r=%d link=%s rssi=%d\n", r, ssid, rssi);
+    return r;
+  }
   if (!strcmp(argv[2], "scan")) {
     kg_wifi_ap_t aps[AT_APS]; uint8_t n, i, r = at_scan(aps, &n);
     for (i = 0; i < n; i++) printf("ap %s %d %d\n", aps[i].ssid, aps[i].rssi, aps[i].ecn);

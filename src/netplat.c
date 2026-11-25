@@ -8,11 +8,13 @@ uint16_t net_ticks(void)
   return ticks;
 }
 
-// polls the keys once a frame: Esc cancels the wait
+uint8_t net_bg;
+
+// polls the keys once a frame: Esc cancels the wait (not in a background poll: the keys stay queued)
 uint8_t net_idle(void)
 {
   static uint16_t last;
-  if (ticks == last) return 0;
+  if (net_bg || ticks == last) return 0;
   last = ticks;
   return kbd_get() == K_ESC;
 }

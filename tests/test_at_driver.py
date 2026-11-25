@@ -64,6 +64,10 @@ class TestAtDriver(unittest.TestCase):
         self.assertIn(b'ssid=host-network', p.stdout)
         self.assertIn(b'ip=192.168.4.2', p.stdout)
 
+    def test_link(self):
+        p = self.run_host('link')
+        self.assertIn(b'r=0 link=host-network rssi=-40', p.stdout)
+
     def test_scan_join_forget(self):
         p = self.run_host('scan')
         self.assertIn(b'ap host-network -40 3', p.stdout)

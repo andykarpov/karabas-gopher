@@ -4,6 +4,7 @@
 #include "zifi32.h"
 
 net_t net;
+net_link_t net_lk;
 
 void net_detect(void) BANKED
 {
@@ -129,4 +130,29 @@ void net_close(void) BANKED
 {
   if (net.active == BK_ZIFI32) zf_gopher_close();
   else at_tcp_close();
+}
+
+void net_link(void) BANKED
+{
+  uint8_t i;
+  net_lk.rssi = 0;
+  net_lk.ecn = 0xFF;
+  if (net.active == BK_ZIFI32) {
+    uint8_t s = zf_netstate();
+    strcpy(net_lk.ssid, cfg.ssid);
+    net_lk.state = s == 2 ? LK_UP : s == 1 ? LK_JOINING : LK_DOWN;
+  } else if (net.active == BK_ZIFI || net.active == BK_USB) {
+    if (at_link(net_lk.ssid, &net_lk.rssi) != AT_OK) net_lk.ssid[0] = 0;
+    net_lk.state = net_lk.ssid[0] ? LK_UP : net.active == BK_USB ? LK_NONE : LK_DOWN;
+  } else {
+    net_lk.state = LK_NONE;
+    net_lk.ssid[0] = 0;
+  }
+  // signal (ZiFi32 has no command for it) and security: from the last scan
+  for (i = 0; i < net.naps; i++)
+    if (!strcmp(net.aps[i].ssid, net_lk.ssid)) {
+      if (!net_lk.rssi) net_lk.rssi = net.aps[i].rssi;
+      net_lk.ecn = net.aps[i].ecn;
+      break;
+    }
 }

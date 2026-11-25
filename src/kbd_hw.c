@@ -48,3 +48,21 @@ uint16_t kbd_get(void) BANKED
       return k;
   }
 }
+
+static uint8_t from_bcd(uint8_t v) { return (v >> 4) * 10 + (v & 15); }
+
+// the clock of the Gluk CMOS (the MCU keeps it, the boot core sets it by NTP): 24-hour h, m
+void rtc_get(uint8_t *h, uint8_t *m)
+{
+  uint8_t b, hh, mm, pm;
+  P_EFF7 = 0x80;
+  CMOS_ADDR = 0x0B; b = CMOS_DATA;
+  CMOS_ADDR = 0x04; hh = CMOS_DATA;
+  CMOS_ADDR = 0x02; mm = CMOS_DATA;
+  pm = hh & 0x80;
+  hh &= 0x7F;
+  if (!(b & 4)) { hh = from_bcd(hh); mm = from_bcd(mm); }   // bit 2: binary, else BCD
+  if (!(b & 2)) hh = hh % 12 + (pm ? 12 : 0);              // bit 1: 24 hours, else 12 + PM bit
+  *h = hh;
+  *m = mm;
+}

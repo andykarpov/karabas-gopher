@@ -42,3 +42,5 @@ extern kbd_state_t kbd;
 extern uint8_t kbd_ok;      // 0: no PS/2 key buffer found
 void kbd_init(void) BANKED;
 uint16_t kbd_get(void) BANKED;     // next key or K_NONE, never waits
+// the clock of the Gluk CMOS (kbd_hw.c, same ports; bank BANK_UI, plain call from that bank)
+void rtc_get(uint8_t *h, uint8_t *m);
