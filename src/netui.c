@@ -41,7 +41,7 @@ static void wifi_status_draw(void)
   txt_print(LX + 20, 2, 58, A_BG, line);
   txt_print(LX, 3, 20, A_BG, net.active == BK_ZIFI32 ? "Сеть хранится" : "Управление потоком");
   if (net.active == BK_ZIFI32)
-    txt_print(LX + 20, 3, 50, A_BG, "в " CFG_PATH " (подключается при старте браузера)");
+    txt_print(LX + 20, 3, 50, A_BG, "в " CFG_PATH " (браузер подключает её сам)");
   else
     txt_print(LX + 20, 3, 50, s->flow == 2 || s->flow == 3 ? A_BG : A_MSG,
               s->flow < 0 ? "неизвестно" : (s->flow & 2) ? "CTS включён" : "CTS выключен (возможны потери)");
