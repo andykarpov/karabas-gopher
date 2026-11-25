@@ -12,6 +12,13 @@ Our own Gopher browser for TS-Conf (`.spg`, Wild Commander / ts-bios), with the 
 
 Docs, in Russian: `docs/PLAN.md` (proposal, decisions, phases), `docs/BACKLOG.md` (open items, keep it current). Follow the phases; record a changed decision in PLAN.md. Status 2026-11-25: plan approved (decisions in PLAN §7: C on SDCC, PC AT proxy + real ESP8266 on a USB-UART adapter, own INI format, no AY backend, repo local only, name open: maybe `karabas-gopher`).
 
+## Build and layout
+
+- `make` -> `build/gopher.spg` (SDCC 4.2 `sdcc` / `sdasz80`, `makebin`, Python 3 tools; default sdcccall, no prebuilt tslabs SDK libs). `make test` = host tests (`tests/`, seconds). `make emu` = the spg in unreal-ng TS-Conf, headless via emu-shot -> `build/emu.png` (read the PNG). `make font` regenerates `res/font866.bin` (CP866 8x8 from the public-domain console font FullCyrSlav-VGA8).
+- `src/crt0.s`: SPG runs at #C000 in page #20, maps code pages #20/#21 at #0000-#7FFF, data + stack page #22 at #8000-#BFFF, window 3 = paged buffers (page #23 at start); 14 MHz + cache, IM 1 frame counter `ticks`. Code limit 32 KB (the Makefile checks).
+- `src/ts.h`: TS-Conf ports (`__sfr __banked`, #nnAF) and the page map; `src/text.c`: text mode 320x240 = 80 x 30, chars + attributes in page #24 (256 bytes a line, attributes at +128, ink low nibble), font in page #25, palette 15 written through FMAddr.
+- `tools/mkspg.py`: SPG v1.0 writer (uncompressed blocks, <= 16 KB each); `tools/at_proxy.py`: the PC side of the USB serial backend (ESP8266 AT subset, refuses AT+RST / RESTORE / UART_DEF / SYSSTORE).
+
 ## Rules
 
 - The ESP8266 is set up by the boot core (fw `app_wifi`: `AT+CWJAP` + `AT+CWAUTOCONN=1`, `AT+UART_DEF=115200,8,1,0,2` = CTS). Never send `AT+RESTORE`, `AT+UART_DEF`, `AT+RST` on detection; a changed baud is `AT+UART_CUR` only; Forget = `AT+CWAUTOCONN=0` + `AT+CWQAP`.
