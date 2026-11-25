@@ -28,7 +28,7 @@ __sfr __banked __at(0x2AAF) TS_INTMASK;
 // Memory map (crt0.s, bank.h): window 0 = common code + data + stack (page #20), windows 1 + 2 = the
 // current bank (pages #30 + 2n, #31 + 2n), window 3 = paged buffers.
 #define PG_COMMON     0x20
-#define PG_SCRATCH    0x23
+#define PG_SCRATCH    0x23    // the INI text of config.c (2 KB at #C000)
 #define PG_BANK(n)    (0x30 + 2 * (n))
 #define PG_TEXT       0x24    // text mode: chars + attributes (VPAGE)
 #define PG_FONT       0x25    // its font: VPAGE ^ 1, 2 KB at the start

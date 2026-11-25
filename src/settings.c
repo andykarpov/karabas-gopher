@@ -93,7 +93,7 @@ static void draw_all(uint8_t sel)
   for (i = 0; i < N_ITEMS; i++) draw_item(i, i == sel);
   txt_fill(0, TXT_ROWS - 1, TXT_COLS, ' ', A_HELP);
   txt_print(1, TXT_ROWS - 1, TXT_COLS - 7, A_HELP,
-            "\x18\x19 пункт   Enter изменить   \x1b\x1a выбор   F2 сохранить   Ins РУС/LAT");
+            "\x18\x19 пункт   Enter изменить   \x1b\x1a выбор   F2 сохранить   Esc назад");
   draw_status();
 }
 
@@ -176,6 +176,7 @@ void settings_run(void) BANKED
   for (;;) {
     k = wait_key();
     msg[0] = 0;
+    if (k == K_ESC) return;
     switch (k) {
       case K_UP:   if (sel) sel--; else sel = N_ITEMS - 1; break;
       case K_DOWN: if (++sel == N_ITEMS) sel = 0; break;

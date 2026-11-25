@@ -2,11 +2,14 @@
 #include "config.h"
 #include "ini.h"
 #include "fatfs/ff.h"
+#include "ts.h"
 
 config_t cfg;
 static FATFS fs;
 
-static char ini_buf[2048];
+// the INI text lives in page PG_SCRATCH (window 3): every function here maps it first
+#define INI_CAP 2048
+#define ini_buf ((char *)WIN3)
 static ini_t ini;
 static FIL f;
 char zifi_ssid[33], zifi_pass[64];
@@ -48,13 +51,14 @@ uint8_t cfg_load(void) BANKED
   uint8_t r;
 
   cfg_defaults();
-  ini_init(&ini, ini_buf, sizeof(ini_buf), 0);
+  TS_PAGE3 = PG_SCRATCH;
+  ini_init(&ini, ini_buf, INI_CAP, 0);
   r = f_open(&f, CFG_PATH, FA_READ);
   if (r) return r;
-  r = f_read(&f, ini_buf, sizeof(ini_buf) - 1, &n);
+  r = f_read(&f, ini_buf, INI_CAP - 1, &n);
   f_close(&f);
   if (r) return r;
-  ini_init(&ini, ini_buf, sizeof(ini_buf), (uint16_t)n);
+  ini_init(&ini, ini_buf, INI_CAP, (uint16_t)n);
 
   if (ini_get(&ini, "net", "backend", v, sizeof(v)))
     cfg.backend = pick(v, backend_names, BK_COUNT, BK_AUTO);
@@ -74,9 +78,10 @@ uint8_t cfg_save(void) BANKED
   UINT n;
   uint8_t r;
 
+  TS_PAGE3 = PG_SCRATCH;
   if (!ini.len) {
     strcpy(ini_buf, template);
-    ini_init(&ini, ini_buf, sizeof(ini_buf), sizeof(template) - 1);
+    ini_init(&ini, ini_buf, INI_CAP, sizeof(template) - 1);
   }
   if (!ini_set(&ini, "net", "backend", backend_names[cfg.backend])
       || !ini_set(&ini, "zifi32", "ssid", cfg.ssid)
@@ -121,8 +126,9 @@ uint8_t cfg_zifi_read(void) BANKED
   UINT n;
   char *p, *e;
   zifi_ssid[0] = zifi_pass[0] = 0;
+  TS_PAGE3 = PG_SCRATCH;
   if (f_open(&f, ZIFI_INI, FA_READ)) return 0;
-  if (f_read(&f, ini_buf, sizeof(ini_buf) - 1, &n)) n = 0;
+  if (f_read(&f, ini_buf, INI_CAP - 1, &n)) n = 0;
   f_close(&f);
   ini_buf[n] = 0;
   for (p = ini_buf; *p; p = e) {
@@ -131,6 +137,6 @@ uint8_t cfg_zifi_read(void) BANKED
     zifi_value(p, "ssid", zifi_ssid, sizeof(zifi_ssid));
     zifi_value(p, "password", zifi_pass, sizeof(zifi_pass));
   }
-  ini_init(&ini, ini_buf, sizeof(ini_buf), 0);   // the buffer held ZIFI.INI: no gopher.ini text
+  ini_init(&ini, ini_buf, INI_CAP, 0);   // the buffer held ZIFI.INI: no gopher.ini text
   return zifi_ssid[0] != 0;
 }

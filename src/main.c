@@ -4,6 +4,8 @@
 #include "kbd.h"
 #include "config.h"
 #include "settings.h"
+#include "netui.h"
+#include "net/net.h"
 #include "fatfs/ff.h"
 
 // the messages live in the common code: settings_msg() runs in another bank (bank.h)
@@ -11,6 +13,8 @@ static const char m_nosd[] = "Нет SD-карты: настройки не со
 static const char m_nofile[] = "Файла " CFG_PATH " нет: настройки по умолчанию, F2 создаст его";
 static const char m_err[] = "Ошибка чтения " CFG_PATH;
 static const char m_ok[] = "Настройки прочитаны из " CFG_PATH;
+static const char m_search[] = "Поиск модулей (ZiFi, USB serial)...";
+static uint8_t cfg_zifi_offered;
 
 void main(void)
 {
@@ -25,11 +29,17 @@ void main(void)
     settings_msg(m_nosd, r);
   else if ((r = cfg_load()) == FR_NO_FILE || r == FR_NO_PATH) {
     settings_msg(m_nofile, 0xFF);
-    if (cfg_zifi_read()) settings_offer_zifi();
+    if (cfg_zifi_read()) cfg_zifi_offered = settings_offer_zifi();
   }
   else if (r)
     settings_msg(m_err, r);
   else
     settings_msg(m_ok, 0xFF);
-  settings_run();
+  if (cfg_zifi_offered) settings_run();
+  txt_clear(ATTR(COL_WHITE, COL_BLUE));
+  txt_goto(2, 2);
+  txt_puts(m_search);
+  net_detect();
+  net_auto();
+  netui_run();
 }

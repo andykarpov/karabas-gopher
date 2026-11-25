@@ -10,14 +10,14 @@ Use the clean port of the board (CDC if02 or a USB-UART adapter): CDC if00 eats 
 Subset (AT 1.7 / 2.x style): AT, ATE0/1, AT+GMR, AT+CWMODE, AT+CWJAP? / =, AT+CWQAP,
 AT+CWAUTOCONN, AT+CWLAP, AT+CIFSR, AT+CIPSTA?, AT+CIPMUX, AT+CIPSTART, AT+CIPSEND, AT+CIPCLOSE,
 AT+CIPSTATUS, AT+CIPRECVMODE (0 active +IPD,n:data / 1 passive +IPD,n + AT+CIPRECVDATA),
-AT+CIPDNS / CIPSNTPCFG / UART_CUR (accepted, no effect). AT+RST, AT+RESTORE, AT+UART_DEF and
+AT+CIPDNS / CIPSNTPCFG / UART_CUR (accepted, no effect). AT+RST, AT+RESTORE, AT+UART_DEF= and
 AT+SYSSTORE are refused with ERROR and a loud log line: the browser must never send them.
 """
 import argparse, os, re, select, socket, sys, termios, time, tty
 
 VERSION = ('AT version:1.7.4.0(karabas at_proxy)\r\nSDK version:3.0.4\r\n'
            'compile time:Nov 25 2026\r\nBin version(Wroom 02):1.7.4\r\n')
-FORBIDDEN = ('AT+RST', 'AT+RESTORE', 'AT+UART_DEF', 'AT+SYSSTORE')
+FORBIDDEN = ('AT+RST', 'AT+RESTORE', 'AT+UART_DEF=', 'AT+SYSSTORE')   # queries (?) are fine
 HOST_SSID = 'host-network'
 
 
@@ -77,6 +77,8 @@ class AtModem:
     def _command(s, cmd):
         s.log('< ' + cmd)
         u = cmd.upper()
+        if u in ('AT+UART_DEF?', 'AT+UART_CUR?'):
+            return s._ok('+%s:115200,8,1,0,2\r\n' % u[3:-1])
         if u.startswith(FORBIDDEN):
             s.log('!!! FORBIDDEN command from the browser: ' + cmd)
             return s._err()
