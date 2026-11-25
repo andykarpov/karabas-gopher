@@ -319,9 +319,9 @@ int16_t zf_gopher_read(uint8_t *buf, uint16_t max)
   if (chunk_pos == chunk_len) {
     if (at_end) return -1;
     cmd(CMD_S_READ);
-    s = wait(50 * 20, 0xFF);
-    if (s == S_READY) { at_end = 1; return -1; }       // DATA_SIZE 0: the end
-    if (s != S_S2M) { result(s); at_end = 1; return -1; }
+    s = wait(50 * 32, 0xFF);                           // the firmware waits up to 30 s for data
+    if (s == S_READY) { at_end = 1; return -1; }       // DATA_SIZE 0: the end (or 30 s of silence)
+    if (s != S_S2M) { result(s); at_end = 1; return -2; }
     chunk_len = read_data();
     chunk_pos = 0;
     wait(50, S_S2M);

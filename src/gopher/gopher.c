@@ -21,15 +21,18 @@ uint8_t gopher_fetch(const gurl_t *u, uint8_t wrap) BANKED
   uint8_t r;
   int16_t n;
   uint16_t t0, shown = 0;
+  // net_recv: > 0 data, 0 nothing yet, -1 the end, -2 the module failed
   gopher_bytes = 0;
   doc_reset(cfg.charset, wrap);
   if (!net.active) return G_NONET;
+  if (net.active == BK_ZIFI32 && zf_netstate() != 2) return G_NOWIFI;
   r = net_gopher_open(u);                // the selector (may hold TAB + words) + CR LF
   if (r == AT_CANCEL) return G_CANCEL;
   if (r == NET_NOSEL) return G_NOSEL;
   if (r) return G_NOCONN;
   t0 = ticks;
-  while ((n = net_recv(buf, sizeof(buf))) >= 0) {
+  while ((n = net_recv(buf, sizeof(buf))) >= 0 || n == -2) {
+    if (n == -2) { net_close(); doc_end(); return G_TIMEOUT; }
     if (!n) {
       if ((uint16_t)(ticks - t0) > 50 * 20) { net_close(); doc_end(); return G_TIMEOUT; }
       if (net_idle()) { net_close(); doc_end(); return G_CANCEL; }

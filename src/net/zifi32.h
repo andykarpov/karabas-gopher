@@ -26,5 +26,5 @@ uint8_t zf_last_status(void);                        // the STATUS of the last f
 
 // gopher stream: the URL is built from host / port / selector (see zifi32.c on the selector)
 uint8_t zf_gopher_open(const char *host, uint16_t port, const char *sel);
-int16_t zf_gopher_read(uint8_t *buf, uint16_t max);  // as at_tcp_recv: >0, 0 none yet, -1 the end
+int16_t zf_gopher_read(uint8_t *buf, uint16_t max);  // >0, -1 the end, -2 no answer / error
 void zf_gopher_close(void);

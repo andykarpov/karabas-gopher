@@ -162,7 +162,9 @@ uint8_t settings_offer_zifi(void) BANKED
   if (k == K_ESC) return 0;
   strcpy(cfg.ssid, zifi_ssid);
   strcpy(cfg.pass, zifi_pass);
-  settings_msg("Сеть взята из " ZIFI_INI ", F2 сохранит её в " CFG_PATH, 0xFF);
+  // taken = kept: ZiFi32 joins it on every start from gopher.ini
+  if (cfg_save()) settings_msg("Сеть взята из " ZIFI_INI ", но " CFG_PATH " не записан", 0xFF);
+  else settings_msg("Сеть взята из " ZIFI_INI " и записана в " CFG_PATH, 0xFF);
   return 1;
 }
 

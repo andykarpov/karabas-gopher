@@ -34,5 +34,6 @@ uint8_t net_send(const uint8_t *buf, uint16_t n) BANKED;
 #define NET_NOSEL 0x10
 uint8_t net_gopher_open(const gurl_t *u) BANKED;
 uint8_t net_zf_reset(void) BANKED;
-int16_t net_recv(uint8_t *buf, uint16_t max) BANKED;           // as at_tcp_recv
+uint8_t net_zf_status(void) BANKED;          // the module STATUS of the last failed ZiFi32 command
+int16_t net_recv(uint8_t *buf, uint16_t max) BANKED;           // as at_tcp_recv; -2 = the module failed
 void net_close(void) BANKED;

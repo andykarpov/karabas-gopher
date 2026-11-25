@@ -52,7 +52,13 @@ build/gopher.spg: build/pages.stamp res/font866.bin tools/mkspg.py
 	  $$(for f in build/pages/page*.bin; do p=$${f##*/page}; echo --block 0x$${p%.bin}:$$f; done) \
 	  --block 0x25:res/font866.bin
 
+# res/font866.bin = the font of Wild Commander (tslabs zx-evo pentevo/soft/WC/source/FONT32L3.CDB, user's
+# choice 2026-11-25); `make font-psf` makes the older one from a console font instead
+ZXEVO ?= ../zx-evo
 font:
+	git -C $(ZXEVO) show origin/master:pentevo/soft/WC/source/FONT32L3.CDB > res/font866.bin
+
+font-psf:
 	$(PY) tools/mkfont.py $(FONT_PSF) res/font866.bin
 
 build/at_host: tests/host/at_host.c src/net/at.c src/net/esp_at_parse.c src/net/*.h | build
@@ -70,5 +76,5 @@ emu: build/gopher.spg
 clean:
 	rm -rf build
 
-.PHONY: all font test emu clean
+.PHONY: all font font-psf test emu clean
 .SECONDARY:

@@ -97,6 +97,7 @@ uint8_t net_forget(void) BANKED
 }
 
 uint8_t net_zf_reset(void) BANKED { return zf_err(zf_reset()); }
+uint8_t net_zf_status(void) BANKED { return zf_last_status(); }
 
 uint8_t net_open(const char *host, uint16_t port) BANKED { return at_tcp_open(host, port); }
 uint8_t net_send(const uint8_t *buf, uint16_t n) BANKED { return at_tcp_send(buf, n); }

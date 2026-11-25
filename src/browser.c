@@ -217,6 +217,7 @@ static const char *fetch_error(uint8_t r)
     case G_SEND: return "Ошибка отправки запроса";
     case G_CANCEL: return "Прервано";
     case G_TIMEOUT: return "Сервер замолчал (20 с)";
+    case G_NOWIFI: return "ZiFi32 не подключён к Wi-Fi: F9 \xc4 Wi-Fi";
     case G_NOSEL: return "Этот адрес ZiFi32 не открывает: селектор без \"/\" (нужна новая прошивка)";
   }
   return "Ошибка";
@@ -239,7 +240,18 @@ static uint8_t open_url(uint8_t push)
   cur.top = 0;
   first_link();
   draw_all();
-  if (r != G_OK) status(fetch_error(r), A_STAT);
+  if (r != G_OK) {
+    strcpy(disp, fetch_error(r));
+    if (net.active == BK_ZIFI32 && (r == G_NOCONN || r == G_TIMEOUT)) {
+      // the module's own code (docs: B1 DNS, B2 connect, A0 memory...)
+      static const char hx[] = "0123456789ABCDEF";
+      uint8_t st = net_zf_status(), n = (uint8_t)strlen(disp);
+      strcpy(disp + n, " (ZiFi32   )");
+      disp[n + 9] = hx[st >> 4];
+      disp[n + 10] = hx[st & 15];
+    }
+    status(disp, A_STAT);
+  }
   else if (gopher_full()) status("Документ слишком большой: показано начало", A_STAT);
   else if (!gopher_rows()) status("Пусто", A_STAT);
   else {
