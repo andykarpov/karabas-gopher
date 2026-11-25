@@ -50,3 +50,14 @@ int16_t net_recv(uint8_t *buf, uint16_t max) BANKED;           // as at_tcp_recv
 void net_close(void) BANKED;
 // a short poll of the link (AT+CWJAP? / NETSTATE) -> net_lk; only while the network is free
 void net_link(void) BANKED;
+
+// tracker modules (MOD / XM / S3M) of the big buffer: GS (MOD) or ZiFi32 (FEAT >= 10)
+enum { TRK_NONE, TRK_GS, TRK_ZF };
+enum { FMT_MOD, FMT_XM, FMT_S3M };
+extern uint8_t trk_gs;                           // a GS was found (trk_detect)
+void trk_detect(void) BANKED;
+uint8_t trk_engine(uint8_t fmt) BANKED;          // who would play it: TRK_*
+uint8_t trk_play(uint8_t fmt, uint32_t len) BANKED;   // 0 ok
+void trk_pause(uint8_t on) BANKED;
+void trk_stop(void) BANKED;
+uint8_t trk_ended(void) BANKED;                  // GS: the song position went back (looped)

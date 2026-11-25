@@ -101,7 +101,7 @@ static void bar_view(void)
 
 void browse_progress(void) BANKED
 {
-  if (gopher_saving == 2) return;            // a track loads: the player part of the row shows it
+  if (gopher_saving >= 2) { player_draw(); return; }   // a track loads: the player part shows it
   uint32_t k = gopher_bytes >> 10;           // whole KB: no 32-bit printf
   uint16_t dt = ticks - gopher_t0;
   char nb[12];
@@ -203,8 +203,12 @@ static void hint(void)
       case 'h': h = "~Enter~ показать адрес  ~BS~ назад"; break;
       case '8': case 'T': h = "telnet не поддерживается  ~BS~ назад"; break;
       case '0': h = "~Enter~ читать  ~F10~ скачать  ~BS~ назад"; break;
-      default: h = player_playable(it.sel, it.slen) ? "~Enter~ играть  ~F10~ скачать  ~BS~ назад" :
-                   "~Enter~ / ~F10~ скачать  ~BS~ назад";
+      default: {
+        uint8_t f = player_format(it.sel, it.slen);
+        h = !f ? "~Enter~ / ~F10~ скачать  ~BS~ назад" :
+            player_can(f) ? "~Enter~ играть  ~F10~ скачать  ~BS~ назад" :
+            f == PF_MOD ? "~F10~ скачать (играть: GS или ZiFi32)" : "~F10~ скачать (играть: ZiFi32 0.6.4+)";
+      }
     }
   txt_fill(0, HINT_Y, TXT_COLS, ' ', A_HINT);
   ui_hint(1, HINT_Y, 44, A_HINT, A_HINTK, h);
@@ -419,12 +423,14 @@ static uint8_t sel_url(void)
 
 static const char *play_error(uint8_t r)
 {
-  if (r == G_BIG) return "Модуль больше 43 КБ: только скачать (F10)";
+  if (r == G_BIG) return "Модуль слишком большой: только скачать (F10)";
   if (r == PL_NOTPT3) return "Это не PT3-модуль";
+  if (r == PL_NOENG) return "Этот формат здесь не играет: только скачать (F10)";
+  if (r == PL_ENGINE) return "GS / ZiFi32 не принял модуль";
   return fetch_error(r);
 }
 
-// Enter on a PT3 link: the play list = the PT3 links of this menu, from the selected one
+// Enter on a music link: the play list = the music links of this menu, from the selected one
 static void play_menu(void)
 {
   gitem_t it;
@@ -433,7 +439,7 @@ static void play_menu(void)
   player_stop();
   player_clear();
   for (i = 0; i < rows; i++) {
-    if (!row_item(i, &it) || !menu_link(it.type) || !player_playable(it.sel, it.slen)) continue;
+    if (!row_item(i, &it) || !menu_link(it.type) || !player_format(it.sel, it.slen)) continue;
     memset(&ui_go, 0, sizeof(ui_go));
     for (k = 0; k < it.hlen && k < URL_HOST - 1; k++) ui_go.host[k] = it.host[k];
     if (!ui_go.host[0]) memcpy(ui_go.host, cur.u.host, URL_HOST);
@@ -456,7 +462,11 @@ static void open_sel(void)
 {
   gitem_t it;
   if (cur.mode == M_MENU && cur.sel != 0xFFFF && row_item(cur.sel, &it) && it.type != '1' &&
-      it.type != '7' && player_playable(it.sel, it.slen)) { play_menu(); return; }
+      it.type != '7' && player_format(it.sel, it.slen)) {
+    if (player_can(player_format(it.sel, it.slen))) play_menu();
+    else status(play_error(PL_NOENG), A_STAT);
+    return;
+  }
   if (!sel_url()) return;
   if (cur.mode == M_BOOK) { open_url(1); return; }
   if (ui_go.type == '7') {

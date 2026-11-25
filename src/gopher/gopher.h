@@ -10,7 +10,7 @@ enum { G_OK, G_NONET, G_NOCONN, G_SEND, G_CANCEL, G_TIMEOUT, G_NOSEL, G_NOWIFI, 
 uint8_t gopher_fetch(const gurl_t *u, uint8_t wrap) BANKED;
 extern uint32_t gopher_bytes;
 extern uint16_t gopher_t0;            // ticks at the start of the data
-extern uint8_t gopher_saving;         // 1 while gopher_save runs, 2 gopher_load (for browse_progress)
+extern uint8_t gopher_saving;         // 1 while gopher_save runs, 2 gopher_load, 3 gopher_load_big
 extern uint8_t gopher_fr;             // the FatFs code of G_FILE / G_WRITE (DL_FULL: the card is full)
 // a download into the file path ("dir/name" in RAM, room = its buffer; the name may get "_N");
 // a text item (type 0) loses its "." line; a failed / cancelled download is deleted
@@ -28,3 +28,5 @@ void gopher_doc_end(void) BANKED;
 // a music module into the pages PG_MUSIC.. at PT3_MOD (the player must be stopped); G_BIG if it
 // is longer than PT3_MAX; gopher_bytes = its length
 uint8_t gopher_load(const gurl_t *u) BANKED;
+// a tracker module into the big buffer (PG_BIG.., up to BIG_MAX); gopher_bytes = its length
+uint8_t gopher_load_big(const gurl_t *u) BANKED;

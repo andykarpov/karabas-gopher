@@ -163,6 +163,31 @@ _pt3_cmd::
         ei
         ret
 
+; uint8_t gs_put(const uint8_t *p, uint16_t n): HL = p, DE = n; each byte to #B3 after the GS took the
+; previous one (status #BB bit 7 clear); A = 0, or 1 if the GS stopped taking bytes (~65536 polls)
+_gs_put::
+        ld      a, d
+        or      e
+        ret     z
+1$:     ld      bc, #0
+2$:     in      a, (#0xBB)
+        rla
+        jr      nc, 3$
+        dec     bc
+        ld      a, b
+        or      c
+        jr      nz, 2$
+        inc     a
+        ret
+3$:     ld      a, (hl)
+        out     (#0xB3), a
+        inc     hl
+        dec     de
+        ld      a, d
+        or      e
+        jr      nz, 1$
+        ret
+
 ; A = bank: Page1 = #30 + 2A, Page2 = #31 + 2A; keeps BC, DE, HL
 set_bank::
         ld      (cur_bank), a

@@ -2,6 +2,7 @@
 #include "net.h"
 #include "tr_ts.h"
 #include "zifi32.h"
+#include "gs.h"
 
 net_t net;
 net_link_t net_lk;
@@ -157,4 +158,55 @@ void net_link(void) BANKED
       net_lk.ecn = net.aps[i].ecn;
       break;
     }
+}
+
+// ---- tracker modules
+
+uint8_t trk_gs;
+static uint8_t trk_kind, trk_last;
+
+void trk_detect(void) BANKED { trk_gs = gs_detect(); }
+
+uint8_t trk_engine(uint8_t fmt) BANKED
+{
+  uint8_t zf = net.found[BK_ZIFI32] && zf_track_ok(&net.zf);
+  if (fmt == FMT_MOD && trk_gs) return TRK_GS;
+  return zf ? TRK_ZF : TRK_NONE;
+}
+
+uint8_t trk_play(uint8_t fmt, uint32_t len) BANKED
+{
+  static const uint8_t types[3] = { ZF_MOD, ZF_XM, ZF_S3M };
+  uint8_t e = trk_engine(fmt);
+  trk_stop();
+  trk_last = 0;
+  if (e == TRK_GS) { if (gs_play_module(len)) return 1; }
+  else if (e == TRK_ZF) { if (zf_track_play(types[fmt], len)) return 1; }
+  else return 1;
+  trk_kind = e;
+  return 0;
+}
+
+void trk_pause(uint8_t on) BANKED
+{
+  if (trk_kind == TRK_GS) { if (on) gs_stop(); else gs_continue(); }
+  else if (trk_kind == TRK_ZF) zf_track_pause(on);
+}
+
+void trk_stop(void) BANKED
+{
+  if (trk_kind == TRK_GS) gs_stop();
+  else if (trk_kind == TRK_ZF) zf_track_free();
+  trk_kind = TRK_NONE;
+}
+
+uint8_t trk_ended(void) BANKED
+{
+  uint8_t p;
+  if (trk_kind != TRK_GS) return 0;              // the ZiFi32 firmware cannot tell (TRACK_GET_STATE)
+  p = gs_song_pos();
+  if (p == 0xFF) return 0;
+  if (p < trk_last) return 1;
+  trk_last = p;
+  return 0;
 }

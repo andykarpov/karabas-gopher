@@ -4,6 +4,7 @@
 #include "kbd.h"
 #include "player.h"
 #include "gopher/gopher.h"
+#include "net/net.h"
 
 typedef struct {                        // 256 bytes: 64 a page, 2 pages
   char host[PL_HOST];
@@ -16,7 +17,7 @@ typedef struct {                        // 256 bytes: 64 a page, 2 pages
 
 uint8_t pl_state, pl_count, pl_cur;
 static uint16_t pl_t0, pl_played;       // ticks: the start of the current run, frames played before it
-static uint8_t pl_loading, last_sec = 0xFF;
+static uint8_t pl_loading, pl_trk, last_sec = 0xFF;   // pl_trk: the track plays on the GS / ZiFi32
 static gurl_t pu;                       // RAM: goes to bank 3
 static char pname[PL_NAME];
 
@@ -42,11 +43,28 @@ uint8_t player_add(const gurl_t *u, const char *name)
   return 1;
 }
 
-uint8_t player_playable(const char *sel, uint8_t slen)
+static uint8_t ext(const char *e, const char *x)   // x: lower case
 {
-  const char *e = sel + slen - 4;
-  if (slen < 5) return 0;
-  return e[0] == '.' && (e[1] | 0x20) == 'p' && (e[2] | 0x20) == 't' && e[3] == '3';
+  for (; *x; e++, x++) if ((*e | 0x20) != *x) return 0;
+  return 1;
+}
+
+uint8_t player_format(const char *sel, uint8_t slen)
+{
+  const char *t = sel + slen;
+  if (slen < 4) return PF_NONE;
+  if (t[-4] == '.' && ext(t - 3, "pt3")) return PF_PT3;
+  if (t[-4] == '.' && ext(t - 3, "mod")) return PF_MOD;
+  if (t[-4] == '.' && ext(t - 3, "s3m")) return PF_S3M;
+  if (t[-3] == '.' && ext(t - 2, "xm")) return PF_XM;
+  return PF_NONE;
+}
+
+uint8_t player_can(uint8_t fmt)
+{
+  if (fmt == PF_PT3) return 1;
+  if (fmt == PF_NONE) return 0;
+  return trk_engine(fmt - PF_MOD) != TRK_NONE;
 }
 
 static uint16_t elapsed(void)          // seconds
@@ -78,7 +96,12 @@ void player_draw(void)
   strncpy(p, pname, w - n - 6);
   p[w - n - 6] = 0;
   txt_print(x, ui_lay_y, w, A_HELP, b);
-  if (!pl_loading) {
+  if (pl_loading) {                           // the size loaded so far
+    char t[8];
+    ui_num(t, " ", (int16_t)(gopher_bytes >> 10));
+    strcat(t, "K");
+    txt_print(x + w - 6, ui_lay_y, 6, A_HELP, t);
+  } else {
     uint16_t s = elapsed();
     char t[7];
     t[0] = ' ';
@@ -89,10 +112,16 @@ void player_draw(void)
   }
 }
 
-void player_stop(void)
+static void silence(void)
 {
   pt3_on = 0;
   pt3_cmd(6);
+  if (pl_trk) { trk_stop(); pl_trk = 0; }
+}
+
+void player_stop(void)
+{
+  silence();
   pl_state = PL_STOP;
   player_draw();
 }
@@ -100,14 +129,15 @@ void player_stop(void)
 void player_pause(void)
 {
   if (pl_state == PL_PLAY) {
-    pt3_on = 0;
-    pt3_cmd(6);
+    if (pl_trk) trk_pause(1);
+    else { pt3_on = 0; pt3_cmd(6); }
     pl_played += ticks - pl_t0;
     pl_state = PL_PAUSE;
   } else if (pl_state == PL_PAUSE) {
     pl_t0 = ticks;
     pl_state = PL_PLAY;
-    pt3_on = 1;
+    if (pl_trk) trk_pause(0);
+    else pt3_on = 1;
   }
   player_draw();
 }
@@ -149,11 +179,12 @@ uint8_t player_play(uint8_t i)
 {
   track_t *t;
   uint8_t r;
+  uint8_t fmt;
   if (i >= pl_count) return G_OK;
-  pt3_on = 0;
-  pt3_cmd(6);
+  silence();
   pl_cur = i;
   t = entry(i);
+  fmt = player_format(t->sel, (uint8_t)strlen(t->sel));
   memset(&pu, 0, sizeof(pu));
   strcpy(pu.host, t->host);
   strcpy(pu.sel, t->sel);
@@ -161,8 +192,21 @@ uint8_t player_play(uint8_t i)
   pu.type = t->type;
   strcpy(pname, t->name);
   pl_state = PL_STOP;
+  if (!player_can(fmt)) { player_draw(); return PL_NOENG; }
   pl_loading = 1;
   player_draw();
+  if (fmt != PF_PT3) {                       // a tracker module: the big buffer, then the GS / ZiFi32
+    r = gopher_load_big(&pu);
+    if (r == G_OK && trk_play(fmt - PF_MOD, gopher_bytes)) r = PL_ENGINE;
+    pl_loading = 0;
+    if (r != G_OK) { player_draw(); return r; }
+    pl_trk = 1;
+    pl_played = 0;
+    pl_t0 = ticks;
+    pl_state = PL_PLAY;
+    player_draw();
+    return G_OK;
+  }
   r = gopher_load(&pu);
   pl_loading = 0;
   if (r == G_OK && !is_pt3(0)) r = PL_NOTPT3;
@@ -201,7 +245,11 @@ void player_tick(void)
   }
   if (pl_state != PL_PLAY) return;
   s = elapsed();
-  if ((uint8_t)s != last_sec) { last_sec = (uint8_t)s; player_draw(); }
+  if ((uint8_t)s != last_sec) {
+    last_sec = (uint8_t)s;
+    if (pl_trk && trk_ended()) { pt3_end = 1; return; }   // the GS looped: the next track at once
+    player_draw();
+  }
 }
 
 uint8_t player_key(uint16_t k)

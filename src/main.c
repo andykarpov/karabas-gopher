@@ -43,6 +43,7 @@ void main(void)
   txt_goto(2, 2);
   txt_puts(m_search);
   net_detect();
+  trk_detect();
   net_auto();
   browser_run();
 }

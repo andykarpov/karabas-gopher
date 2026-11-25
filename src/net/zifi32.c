@@ -1,4 +1,5 @@
 #include <string.h>
+#include "ts.h"
 #include "zifi32.h"
 #include "transport.h"
 #include "at.h"
@@ -23,6 +24,9 @@ __sfr __at(0x77) SPI_CTRL;
 #define R_VER     0x05
 #define R_SIZE    0x03         // DATA_SIZE (4)
 #define R_OWN_IP  0x30
+#define R_OBJTYPE 0x02
+#define R_OFFSET  0x07         // DATA_OFFSET (4)
+#define R_HANDLE  0x0B
 
 #define S_IDLE    0x00
 #define S_READY   0x01
@@ -45,6 +49,12 @@ __sfr __at(0x77) SPI_CTRL;
 #define CMD_S_READ       0x26
 #define CMD_S_CLOSE      0x27
 #define CMD_RESET        0xEE
+#define CMD_TRACK_INIT   0xA0  // July 2026 numbering (FEAT 10, 0.6.4): zf_track_ok()
+#define CMD_TRACK_PLAY   0xA1
+#define CMD_TRACK_STOP   0xA2
+#define CMD_MAKE_OBJECT  0xE0
+#define CMD_WRITE_OBJECT 0xE1
+#define CMD_DELETE_OBJ   0xE3
 
 // the chunk / URL buffer: the receive ring of the AT driver (not used while ZiFi32 is the backend)
 static uint16_t chunk_len, chunk_pos;
@@ -362,4 +372,75 @@ uint8_t zf_gopher_close(void)
   }
   run(CMD_S_CLOSE, 50 * 2);
   return 0;
+}
+
+// ---- tracker (XM / MOD / S3M objects; the codes of FEAT 10+)
+
+static uint8_t trk_handle = 0xFF;
+
+static void wr32(uint8_t reg, uint32_t v)
+{
+  uint8_t b[4];
+  b[0] = (uint8_t)v; b[1] = (uint8_t)(v >> 8); b[2] = (uint8_t)(v >> 16); b[3] = (uint8_t)(v >> 24);
+  wr(reg, b, 4);
+}
+
+void zf_track_free(void)
+{
+  uint8_t h = trk_handle;
+  if (h == 0xFF) return;
+  run(CMD_TRACK_STOP, 50 * 2);
+  wr(R_HANDLE, &h, 1);
+  run(CMD_DELETE_OBJ, 50 * 2);
+  trk_handle = 0xFF;
+}
+
+// the module of the big buffer (len bytes) into an object of type (ZF_XM / ZF_MOD / ZF_S3M), then
+// TRACK_INIT and TRACK_PLAY
+uint8_t zf_track_play(uint8_t type, uint32_t len)
+{
+  uint32_t off = 0;
+  uint8_t r, s, h;
+  zf_track_free();
+  len = (len + 3) & ~3UL;                                  // DMA of the ESP: sizes in 4-byte units
+  wr32(R_SIZE, len);
+  wr(R_OBJTYPE, &type, 1);
+  if ((r = run(CMD_MAKE_OBJECT, 50 * 5))) return r;
+  h = rd8(R_HANDLE);
+  trk_handle = h;
+  while (off < len) {
+    uint16_t k = len - off > 0x4000 ? 0x4000 : (uint16_t)(len - off), i;
+    const uint8_t *p;
+    wr(R_HANDLE, &h, 1);
+    wr32(R_OFFSET, off);
+    wr32(R_SIZE, k);
+    cmd(CMD_WRITE_OBJECT);
+    s = wait(50 * 5, 0xFF);
+    if (s != S_M2S) return result(s);
+    PAGE3(PG_BIG + (uint8_t)(off >> 14));                 // a whole page: offsets are 16 KB aligned
+    p = WIN3;
+    SPI_CTRL = CS_ON;
+    SPI_DATA = C_WR_DATA;
+    (void)SPI_DATA;
+    (void)SPI_DATA;
+    for (i = 0; i < k; i++) SPI_DATA = *p++;
+    SPI_CTRL = CS_OFF;
+    end_xfer(C_W_END);
+    s = wait(50 * 5, S_M2S);
+    if (s != S_READY) return result(s);
+    off += k;
+  }
+  wr(R_HANDLE, &h, 1);
+  if ((r = run(CMD_TRACK_INIT, 50 * 30))) return r;       // an XM is parsed: seconds
+  wr(R_HANDLE, &h, 1);
+  return run(CMD_TRACK_PLAY, 50 * 2);
+}
+
+uint8_t zf_track_pause(uint8_t on)
+{
+  uint8_t h = trk_handle;
+  if (h == 0xFF) return ZF_ERROR;
+  if (on) return run(CMD_TRACK_STOP, 50 * 2);
+  wr(R_HANDLE, &h, 1);
+  return run(CMD_TRACK_PLAY, 50 * 2);
 }

@@ -16,7 +16,7 @@ SJASM   ?= /opt/sjasmplus/sjasmplus
 COMMON  := main.c text.c names.c ini.c netplat.c
 BANK1   := sd.c config.c bm.c dl.c fatfs/ff.c fatfs/ffunicode.c
 BANK2   := settings.c ui.c netui.c browser.c player.c kbd.c kbd_hw.c edit.c gopher/url.c gopher/menu.c gopher/cp.c
-BANK3   := net/net.c net/at.c net/esp_at_parse.c net/tr_ts.c net/zifi32.c gopher/gopher.c gopher/doc.c
+BANK3   := net/net.c net/gs.c net/at.c net/esp_at_parse.c net/tr_ts.c net/zifi32.c gopher/gopher.c gopher/doc.c
 SRCS    := $(COMMON) $(BANK1) $(BANK2) $(BANK3)
 OBJS    := $(addprefix build/,$(SRCS:.c=.rel))
 $(addprefix build/,$(BANK1:.c=.rel)): BANKFLAGS = --codeseg BANK1 --constseg BANK1

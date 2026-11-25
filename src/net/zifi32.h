@@ -29,3 +29,11 @@ uint8_t zf_gopher_open(const char *host, uint16_t port, const char *sel);
 // >0, -1 the end, -2 no answer / error, -3 cancelled (Esc: the current chunk is finished first)
 int16_t zf_gopher_read(uint8_t *buf, uint16_t max);
 uint8_t zf_gopher_close(void);                     // 1: the module was stuck and has been reset
+
+// tracker modules (firmware with FEAT >= 10: the July 2026 command codes); the module is taken from
+// the big buffer PG_BIG..; one at a time, its object deleted by zf_track_free
+enum { ZF_XM = 0x05, ZF_MOD = 0x0A, ZF_S3M = 0x0C };
+#define zf_track_ok(info) ((info)->feat >= 10)
+uint8_t zf_track_play(uint8_t type, uint32_t len);
+uint8_t zf_track_pause(uint8_t on);       // 1: TRACK_STOP, 0: TRACK_PLAY again
+void zf_track_free(void);
