@@ -87,7 +87,7 @@ static void draw_all(uint8_t sel)
   uint8_t i;
   txt_clear(A_BG);
   txt_fill(0, 0, TXT_COLS, ' ', A_TITLE);
-  txt_print(1, 0, 40, A_TITLE, "karabas gopher \xc4 Настройки");
+  txt_print(1, 0, 40, A_TITLE, APP_NAME " \xc4 Настройки");
   for (i = 0; i < N_ITEMS; i++) draw_item(i, i == sel);
   txt_fill(0, TXT_ROWS - 1, TXT_COLS, ' ', A_HELP);
   txt_print(1, TXT_ROWS - 1, TXT_COLS - 7, A_HELP,

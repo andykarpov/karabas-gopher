@@ -92,7 +92,7 @@ static void wifi_list(void)
   uint16_t k;
   char l[48];
   for (;;) {
-    ui_frame("karabas gopher \xc4 Wi-Fi: сети", "\x18\x19 сеть   Enter подключиться   R искать снова   Esc назад");
+    ui_frame(APP_NAME " \xc4 Wi-Fi: сети", "\x18\x19 сеть   Enter подключиться   R искать снова   Esc назад");
     busy("Поиск сетей...");
     net_scan();
     busy(net.naps ? "\x0b \xc4 сеть с паролем, зелёным \xc4 текущая" : "Сети не найдены (R \xc4 искать снова)");
@@ -126,7 +126,7 @@ static void wifi_list(void)
 
 static void wifi_hidden(void)
 {
-  ui_frame("karabas gopher \xc4 Wi-Fi: скрытая сеть", "Enter дальше   Esc назад");
+  ui_frame(APP_NAME " \xc4 Wi-Fi: скрытая сеть", "Enter дальше   Esc назад");
   ssid[0] = 0;
   txt_print(LX, 3, 20, A_BG, "Имя сети (SSID)");
   if (!ui_edit(LX + 20, 3, 50, ssid, 32, 2) || !ssid[0]) return;
@@ -140,7 +140,7 @@ void wifi_run(void) BANKED
   uint16_t k;
   static const char *const items[4] = { "Поиск сетей", "Скрытая сеть", "Забыть сеть", "Перезапустить ZiFi32" };
   for (;;) {
-    ui_frame("karabas gopher \xc4 Wi-Fi", "\x18\x19 пункт   Enter выбрать   Esc назад");
+    ui_frame(APP_NAME " \xc4 Wi-Fi", "\x18\x19 пункт   Enter выбрать   Esc назад");
     busy("Опрос модуля...");
     r = net_status();
     busy(r == AT_OK ? "" : "Модуль не отвечает");
@@ -195,7 +195,7 @@ void nettest_run(void) BANKED
   int16_t n, i;
   uint16_t t0;
   uint32_t total = 0;
-  ui_frame("karabas gopher \xc4 Проверка сети", "Enter запрос   Esc назад");
+  ui_frame(APP_NAME " \xc4 Проверка сети", "Enter запрос   Esc назад");
   host_from_home();
   sel[0] = 0;
   txt_print(LX, 2, 10, A_BG, "Сервер");
@@ -247,7 +247,7 @@ void netui_run(void) BANKED
   static const char *const items[5] = {
     "Подключение", "Wi-Fi...", "Проверка: gopher-запрос...", "Найти модули заново", "Настройки..." };
   for (;;) {
-    ui_frame("karabas gopher \xc4 Сеть", "\x18\x19 пункт   Enter выбрать   \x1b\x1a подключение   F2 сохранить   Esc назад");
+    ui_frame(APP_NAME " \xc4 Сеть", "\x18\x19 пункт   Enter выбрать   \x1b\x1a подключение   F2 сохранить   Esc назад");
     txt_print(LX, 2, 30, A_DIM, "Модули");
     for (b = 1; b < BK_COUNT; b++) {
       txt_print(LX, 2 + b, 26, A_BG, bk_title[b]);

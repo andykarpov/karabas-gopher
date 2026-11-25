@@ -6,7 +6,8 @@
 SDCC    ?= sdcc
 SDAS    ?= sdasz80
 PY      ?= python3 -I
-CFLAGS  := -mz80 --std-sdcc11 --opt-code-size -Isrc -Isrc/fatfs -Isrc/net -Isrc/gopher -Ibuild
+VERSION := $(shell cat VERSION)
+CFLAGS  := -mz80 --std-sdcc11 --opt-code-size -Isrc -Isrc/fatfs -Isrc/net -Isrc/gopher -Ibuild -DAPP_VERSION=\"$(VERSION)\"
 LDFLAGS := -mz80 --no-std-crt0 --code-loc 0x0100 --data-loc 0x2000 -Wl-b_BANK1=0x14000 -Wl-b_BANK2=0x24000 -Wl-b_BANK3=0x34000 -Wl-b_BANK4=0x44000
 HOSTCC  ?= gcc
 SJASM   ?= /opt/sjasmplus/sjasmplus
@@ -39,7 +40,7 @@ build/%.866.c: src/%.c | build
 	@mkdir -p $(dir $@)
 	iconv -f UTF-8 -t CP866 $< > $@
 
-build/%.rel: build/%.866.c src/*.h src/fatfs/*.h src/net/*.h src/gopher/*.h Makefile
+build/%.rel: build/%.866.c src/*.h src/fatfs/*.h src/net/*.h src/gopher/*.h Makefile VERSION
 	$(SDCC) $(CFLAGS) $(BANKFLAGS) -c $< -o $@
 
 build/gopher.ihx: build/crt0.rel $(OBJS)
@@ -55,8 +56,8 @@ build/pt3.bin: src/player/pt3.asm src/player/pt3play.asm | build
 	$(SJASM) --nologo --msg=war --inc=src/player --inc=build $<
 
 # the font and the player go straight into their pages (#25, #54: src/ts.h)
-build/gopher.spg: build/pages.stamp res/font866.bin build/pt3.bin tools/mkspg.py
-	$(PY) tools/mkspg.py $@ --page 0x20 --desc "karabas gopher" \
+build/gopher.spg: VERSION build/pages.stamp res/font866.bin build/pt3.bin tools/mkspg.py
+	$(PY) tools/mkspg.py $@ --page 0x20 --desc "karabas gopher $(VERSION)" \
 	  $$(for f in build/pages/page*.bin; do p=$${f##*/page}; echo --block 0x$${p%.bin}:$$f; done) \
 	  --block 0x25:res/font866.bin --block 0x54:build/pt3.bin
 

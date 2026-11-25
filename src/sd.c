@@ -175,3 +175,37 @@ DRESULT disk_ioctl(BYTE drv, BYTE c, void *buf)
   }
   return RES_PARERR;
 }
+
+// ---- file times: the Gluk clock of the core (CMOS #00..#09, register B #0B: bit 2 binary, bit 1
+// 24 hours; the MCU keeps it, the boot core sets it by NTP)
+__sfr __banked __at(0xEFF7) RTC_EFF7;
+__sfr __banked __at(0xDFF7) RTC_ADDR;
+__sfr __banked __at(0xBFF7) RTC_DATA;
+
+static uint8_t rtc_reg(uint8_t r, uint8_t bcd)
+{
+  uint8_t v;
+  RTC_ADDR = r;
+  v = RTC_DATA;
+  if (r == 4) v &= 0x7F;                     // hours: bit 7 = PM in the 12-hour mode
+  return bcd ? (v >> 4) * 10 + (v & 15) : v;
+}
+
+DWORD get_fattime(void)
+{
+  uint8_t b, bcd, y, mo, d, h, mi, s, pm;
+  RTC_EFF7 = 0x80;
+  RTC_ADDR = 0x0B;
+  b = RTC_DATA;
+  bcd = !(b & 4);
+  do {                                       // again if the clock ticked while reading
+    s = rtc_reg(0, bcd); mi = rtc_reg(2, bcd); h = rtc_reg(4, bcd);
+    pm = RTC_DATA & 0x80;
+    d = rtc_reg(7, bcd); mo = rtc_reg(8, bcd); y = rtc_reg(9, bcd);
+  } while (rtc_reg(0, bcd) != s);
+  if (!(b & 2)) h = h % 12 + (pm ? 12 : 0);  // 12 hours + PM
+  if (y > 99 || !mo || mo > 12 || !d || d > 31 || h > 23 || mi > 59 || s > 59)
+    return (DWORD)(2026 - 1980) << 25 | (DWORD)1 << 21 | (DWORD)1 << 16;   // no clock: 1 Jan 2026
+  return (DWORD)(y + 20) << 25 | (DWORD)mo << 21 | (DWORD)d << 16 |
+         (DWORD)h << 11 | (WORD)mi << 5 | s >> 1;
+}

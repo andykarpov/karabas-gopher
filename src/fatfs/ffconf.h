@@ -237,7 +237,11 @@
 /  Note that enabling exFAT discards ANSI C (C89) compatibility. */
 
 
-#define FF_FS_NORTC		1
+/* karabas gopher: f_getfree / f_rename are not used: 0 leaves them out (bank 1 is full) */
+#define FF_KG_GETFREE	0
+#define FF_KG_RENAME	0
+
+#define FF_FS_NORTC		0	// get_fattime() in sd.c: the Gluk clock
 #define FF_NORTC_MON	1
 #define FF_NORTC_MDAY	1
 #define FF_NORTC_YEAR	2026

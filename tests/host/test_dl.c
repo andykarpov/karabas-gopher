@@ -15,6 +15,9 @@ DRESULT disk_read(BYTE d, BYTE *b, LBA_t s, UINT n) { (void)d; memcpy(b, img + s
 DRESULT disk_write(BYTE d, const BYTE *b, LBA_t s, UINT n) { (void)d; memcpy(img + s * 512, b, n * 512); return RES_OK; }
 DRESULT disk_ioctl(BYTE d, BYTE c, void *b) { (void)d; (void)b; return c == CTRL_SYNC ? RES_OK : RES_PARERR; }
 
+// the board clock of the test: 25.11.2026 12:34:56
+DWORD get_fattime(void) { return (DWORD)(2026 - 1980) << 25 | 11u << 21 | 25u << 16 | 12u << 11 | 34u << 5 | 56u / 2; }
+
 static long fsize(const char *p) { FILINFO fi; return f_stat(p, &fi) ? -1 : (long)fi.fsize; }
 
 static uint8_t save(char *path, const char *data, uint8_t cut)
@@ -43,6 +46,12 @@ int main(int argc, char **argv)
   CHECK_EQ(save(p, "ab", 0), 0); CHECK_STR(p, "/downloads/game_1.tap"); CHECK_EQ(fsize(p), 2);
   strcpy(p, "/downloads/game.tap");
   CHECK_EQ(save(p, "ab", 0), 0); CHECK_STR(p, "/downloads/game_2.tap");
+  {                                                 // the time of the board clock
+    FILINFO fi;
+    CHECK_EQ(f_stat("/downloads/game.tap", &fi), FR_OK);
+    CHECK_EQ(fi.fdate, (2026 - 1980) << 9 | 11 << 5 | 25);
+    CHECK_EQ(fi.ftime, 12 << 11 | 34 << 5 | 28);
+  }
   strcpy(p, "/downloads/readme");                   // no extension
   CHECK_EQ(save(p, "x", 0), 0); strcpy(p, "/downloads/readme");
   CHECK_EQ(save(p, "y", 0), 0); CHECK_STR(p, "/downloads/readme_1");
