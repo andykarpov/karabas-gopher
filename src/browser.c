@@ -501,6 +501,7 @@ static const char *pic_error(uint8_t r)
 {
   if (r == VW_PIC + PICE_SIZE) return "Картинка не того размера или оборвана";
   if (r == VW_PIC + PICE_BMP) return "Такой BMP не показать: нужен 4 / 8 бит без сжатия, до 360x288";
+  if (r == VW_PIC + PICE_GIF) return "GIF испорчен или не GIF: только F10 скачать";
   if (r == G_BIG) return "Картинка больше 2 МБ";
   return fetch_error(r);
 }

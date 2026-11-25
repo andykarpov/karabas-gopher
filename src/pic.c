@@ -1,15 +1,10 @@
 #include <string.h>
-#ifdef HOST
-#include "pic_host_ts.h"                 // tests/host/shim: pages in an array
-#else
-#include "ts.h"
-#endif
 #include "pic.h"
-
-#define C(r, g, b) (uint16_t)(((uint16_t)(r) << 10) | ((g) << 5) | (b))
+#include "picdec.h"                     // HOST: tests/host/shim, pages in an array
 
 static uint8_t vconf[2];                // VConfig of each buffer
 static uint16_t ncol[2];                // colours in its palette (16 / 256)
+frame_t fr;
 static uint8_t bb[360];                 // RAM bounce: a source row (windows 1, 2 hold this code)
 
 static uint8_t lower(char c) { return (uint8_t)c | 0x20; }
@@ -25,11 +20,12 @@ uint8_t pic_format(const char *sel, uint8_t slen) BANKED
   if (lower(t[0]) == 'm' && lower(t[1]) == 'l' && lower(t[2]) == 't') return PICF_MC;
   if (lower(t[0]) == 'i' && lower(t[1]) == 'm' && lower(t[2]) == 'g') return PICF_IMG;
   if (lower(t[0]) == 'b' && lower(t[1]) == 'm' && lower(t[2]) == 'p') return PICF_BMP;
+  if (lower(t[0]) == 'g' && lower(t[1]) == 'i' && lower(t[2]) == 'f') return PICF_GIF;
   return PICF_NONE;
 }
 
 // n bytes of the big buffer from off into bb (or out)
-static void big_read(uint32_t off, uint8_t *out, uint16_t n)
+void big_read(uint32_t off, uint8_t *out, uint16_t n)
 {
   while (n) {
     uint16_t o = (uint16_t)off & 0x3FFF, k = 0x4000 - o;
@@ -47,10 +43,15 @@ static uint16_t zx_col(uint8_t c)
   return C(c & 2 ? l : 0, c & 4 ? l : 0, c & 1 ? l : 0);
 }
 
-static void pal_set(uint8_t buf, uint16_t i, uint16_t w)
+void pal_set(uint8_t buf, uint16_t i, uint16_t w)
 {
   PAGE3(PG_PICPAL);
   ((uint16_t *)(WIN3 + buf * 512))[i] = w;
+}
+
+uint16_t pal_rgb(uint8_t r, uint8_t g, uint8_t b)
+{
+  return C(((uint16_t)r * 3 + 16) >> 5, ((uint16_t)g * 3 + 16) >> 5, ((uint16_t)b * 3 + 16) >> 5);
 }
 
 // a ZX screen line y: its offset in the pixel area
@@ -201,6 +202,33 @@ static uint8_t do_bmp(uint32_t len, uint8_t pg, uint8_t buf)
   return PICE_OK;
 }
 
+void frame_begin(uint8_t buf, uint16_t w, uint16_t h, uint8_t fill)
+{
+  uint8_t r;
+  uint16_t y;
+  fr.w = w; fr.h = h;
+  for (fr.f = 1; (w + fr.f - 1) / fr.f > 360 || (h + fr.f - 1) / fr.f > 288; fr.f++) ;
+  fr.ow = (w + fr.f - 1) / fr.f;
+  fr.oh = (h + fr.f - 1) / fr.f;
+  for (r = 0; r < 3 && (fr.ow > res_w[r] || fr.oh > res_h[r]); r++) ;
+  fr.x0 = (res_w[r] - fr.ow) / 2;
+  fr.y0 = (res_h[r] - fr.oh) / 2;
+  fr.pg = buf ? PG_PICB : PG_PICA;
+  for (y = 0; y < res_h[r]; y++) {                       // 512 bytes a line
+    PAGE3(fr.pg + (uint8_t)(y >> 5));
+    memset(WIN3 + ((y & 31) << 9), fill, 512);
+  }
+  vconf[buf] = (r << 6) | 0x02;
+  ncol[buf] = 256;
+}
+
+void frame_row(uint16_t oy, const uint8_t *row)
+{
+  uint16_t y = fr.y0 + oy;
+  PAGE3(fr.pg + (uint8_t)(y >> 5));
+  memcpy(WIN3 + ((y & 31) << 9) + fr.x0, row, fr.ow);
+}
+
 uint8_t pic_decode(uint8_t fmt, uint32_t len, uint8_t buf) BANKED
 {
   uint8_t pg = buf ? PG_PICB : PG_PICA;
@@ -209,6 +237,7 @@ uint8_t pic_decode(uint8_t fmt, uint32_t len, uint8_t buf) BANKED
     case PICF_MC: return do_mc(len, pg, buf);
     case PICF_IMG: return do_img(len, pg, buf);
     case PICF_BMP: return do_bmp(len, pg, buf);
+    case PICF_GIF: return do_gif(len, buf);
   }
   return PICE_BMP;
 }

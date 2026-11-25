@@ -17,7 +17,7 @@ SJASM   ?= /opt/sjasmplus/sjasmplus
 COMMON  := main.c text.c names.c ini.c netplat.c
 BANK1   := sd.c config.c bm.c dl.c fatfs/ff.c fatfs/ffunicode.c
 BANK2   := settings.c ui.c netui.c browser.c player.c viewer.c kbd.c kbd_hw.c edit.c gopher/url.c gopher/menu.c gopher/cp.c
-BANK4   := pic.c
+BANK4   := pic.c gif.c
 BANK3   := net/net.c net/gs.c net/at.c net/esp_at_parse.c net/tr_ts.c net/zifi32.c gopher/gopher.c gopher/doc.c
 SRCS    := $(COMMON) $(BANK1) $(BANK2) $(BANK3) $(BANK4)
 OBJS    := $(addprefix build/,$(SRCS:.c=.rel))
@@ -98,7 +98,7 @@ test: build/at_host | build
 	iconv -f UTF-8 -t CP866 tests/host/test_dl.c > build/test_dl.866.c
 	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -Isrc -Isrc/fatfs -o build/test_dl build/test_dl.866.c src/dl.c src/fatfs/ff.c src/fatfs/ffunicode.c && ./build/test_dl build/dl.img
 	fsck.fat -n build/dl.img
-	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -DHOST -Itests/host/shim -Isrc -o build/pic_host tests/host/pic_host.c src/pic.c
+	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -DHOST -Itests/host/shim -Isrc -o build/pic_host tests/host/pic_host.c src/pic.c src/gif.c
 	for p in stc asc; do $(HOSTCC) -std=c11 -Wall -Wextra -O1 -DHOST -o build/ay_$$p tests/host/ay_dump.c src/player/$$p.c || exit 1; done
 	$(PY) -m unittest discover -s tests -p 'test_*.py'
 

@@ -4,7 +4,7 @@
 #include <string.h>
 #include "pic_host_ts.h"
 #include "../../src/pic.h"
-uint8_t host_mem[256][0x4000], host_page3, host_cram[512], host_vpage, host_vconf, host_fm;
+uint8_t host_mem[256][0x4000], host_page3, host_cram[512], host_vpage, host_vconf, host_fm, pic_work[0x1000];
 int main(int argc, char **argv)
 {
   FILE *f;

@@ -11,6 +11,7 @@ import os, re, sys
 COMMON_END = 0x2000
 DATA_END = 0x3C00          # 1 KB of stack below #4000
 STACK_TOP = 0x4000
+BANK_TOP = {4: 0xB000}     # bank 4: the work RAM of the picture decoders above (PIC_WORK)
 
 
 def read_ihx(path):
@@ -65,6 +66,8 @@ def main():
         if lo < 0x4000 or hi > 0xC000:
             print('  OUT of #4000-#BFFF'); ok = False
             continue
+        if hi > BANK_TOP.get(n, 0xC000):
+            print('  INTO its work RAM at #%04X (src/picdec.h)' % BANK_TOP[n]); ok = False
         for k, w in enumerate((0x4000, 0x8000)):
             if hi > w:
                 pages[0x30 + 2 * n + k] = bytes(mem.get((n << 16) + a, 0) for a in range(w, min(hi, w + 0x4000)))

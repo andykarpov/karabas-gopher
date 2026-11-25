@@ -126,6 +126,44 @@ class TestPic(unittest.TestCase):
     def test_bmp4_odd(self): self.bmp(301, 199, 4, top_down=True)
     def test_bmp4_320(self): self.bmp(320, 240, 4)
 
+    def gif(self, w, h, ncol, interlace):
+        """A GIF made by Pillow, the expected screen from Pillow's own decoding of it."""
+        from PIL import Image
+        import io
+        rnd = random.Random(w * 7 + h + ncol)
+        im = Image.new('P', (w, h))
+        im.putpalette([rnd.randrange(256) for _ in range(3 * ncol)])
+        # blocks and noise: long LZW strings and short ones
+        px = []
+        for y in range(h):
+            for x in range(w):
+                px.append(((x // 13 + y // 7) % ncol) if rnd.random() < 0.8 else rnd.randrange(ncol))
+        im.putdata(px)
+        buf = io.BytesIO()
+        im.save(buf, 'GIF', interlace=interlace, optimize=False)
+        data = buf.getvalue()
+        ref = Image.open(io.BytesIO(data))
+        idx = list(ref.getdata())
+        n = 2 << (data[10] & 7) if data[10] & 0x80 else 0
+        rp = ref.getpalette()
+        cram = [cw((rp[3 * i] * 3 + 16) >> 5, (rp[3 * i + 1] * 3 + 16) >> 5, (rp[3 * i + 2] * 3 + 16) >> 5)
+                if i < n else 0 for i in range(256)]
+        f = 1
+        while -(-w // f) > 360 or -(-h // f) > 288: f += 1
+        ow, oh = -(-w // f), -(-h // f)
+        sw, sh = next((sw, sh) for sw, sh in RES if ow <= sw and oh <= sh)
+        x0, y0 = (sw - ow) // 2, (sh - oh) // 2
+        want = [[cram[255 if n < 256 else 0]] * sw for _ in range(sh)]
+        for oy in range(oh):
+            for ox in range(ow):
+                want[y0 + oy][x0 + ox] = cram[idx[oy * f * w + ox * f]]
+        self.check(self.run_pic(data, 5), want)
+
+    def test_gif_small(self): self.gif(100, 50, 16, False)
+    def test_gif_full_interlaced(self): self.gif(360, 288, 256, True)
+    def test_gif_scaled(self): self.gif(800, 600, 64, True)
+    def test_gif_wide(self): self.gif(1000, 300, 2, False)
+
 
 if __name__ == '__main__':
     unittest.main()
