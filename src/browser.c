@@ -37,6 +37,7 @@ typedef struct {
 static hist_t cur;                // what is shown
 static gurl_t go;                 // where to go next
 static char line[300], disp[84], query[80], name[61];
+static char link_name[61];      // the text of the link that led to the page shown (bookmark name)
 static uint8_t nhist;
 
 // ---- small helpers
@@ -95,11 +96,12 @@ static uint8_t row_item(uint16_t i, gitem_t *it)
   uint16_t n = gopher_row(i, line, sizeof(line) - 1);
   line[n] = 0;
   if (cur.mode == M_BOOK) {
-    // "URL<TAB>name": shown as a menu link
-    char *t = strchr(line, '\t');
+    // "URL<TAB>name": shown as a menu link of the type in the URL
+    char *t = strchr(line, '\t'), *p = strstr(line, "://");
     memset(it, 0, sizeof(*it));
     if (!n) return 0;
-    it->type = '1';
+    p = strchr(p ? p + 3 : line, '/');
+    it->type = p && p[1] && p[1] != '\t' ? p[1] : '1';
     it->disp = t ? t + 1 : line;
     it->dlen = (uint8_t)strlen(it->disp);
     it->sel = line;
@@ -251,6 +253,7 @@ static void open_sel(void)
   gitem_t it;
   uint8_t i;
   if (cur.mode == M_TEXT || cur.sel == 0xFFFF || !row_item(cur.sel, &it)) return;
+  cp_conv(cur.mode == M_BOOK ? CS_CP866 : cfg.charset, it.disp, it.dlen, link_name, sizeof(link_name) - 1);
   if (cur.mode == M_BOOK) {
     memcpy(line, it.sel, it.slen);
     line[it.slen] = 0;
@@ -299,7 +302,8 @@ static void add_bookmark(void)
 {
   uint8_t r;
   if (cur.mode == M_BOOK || !cur.u.host[0]) return;
-  url_format(&cur.u, name, sizeof(name));
+  if (link_name[0]) strcpy(name, link_name);
+  else url_format(&cur.u, name, sizeof(name));
   status("Название:", A_STAT);
   if (!ui_edit(11, STATUS_Y, TXT_COLS - 12, name, sizeof(name) - 1, 2)) { status("", A_BG); return; }
   url_format(&cur.u, line, 280);
@@ -316,6 +320,7 @@ static void ask_url(void)
   status("Адрес:", A_STAT);
   if (!ui_edit(8, STATUS_Y, TXT_COLS - 9, line, 255, 2)) { status("", A_BG); return; }
   if (!url_parse(line, &go)) { status("Неверный адрес", A_STAT); return; }
+  link_name[0] = 0;
   open_url(1);
 }
 
@@ -323,6 +328,7 @@ static void go_back(void)
 {
   hist_t h;
   if (!hist_pop(&h)) { status("Это первая страница", A_DIM); return; }
+  link_name[0] = 0;
   if (h.mode == M_BOOK) { open_bookmarks(0); return; }
   memcpy(&go, &h.u, sizeof(gurl_t));
   if (open_url(0)) {
@@ -336,6 +342,7 @@ static void go_back(void)
 
 static void go_home(uint8_t push)
 {
+  link_name[0] = 0;
   if (url_parse(cfg.home, &go)) open_url(push);
   else status("Домашняя страница не задана: F9 \xc4 сеть \xc4 настройки", A_STAT);
 }
