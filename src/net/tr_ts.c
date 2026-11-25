@@ -5,6 +5,8 @@
 // #C1EF / #C3EF = free bytes to send. The core holds the ESP with CTS above 1792 received bytes.
 #include "transport.h"
 #include "tr_ts.h"
+#include "ts.h"
+#include "at.h"
 
 __sfr __banked __at(0xC0EF) ZF_RX;
 __sfr __banked __at(0xC1EF) ZF_TX;
@@ -33,3 +35,9 @@ static void r_clear(void) { (void)RS_RX; ZF_CMD = 0x03; }
 
 const transport_t tr_zifi = { z_avail, z_read, z_room, z_write, z_clear };
 const transport_t tr_rs232 = { r_avail, r_read, r_room, r_write, r_clear };
+
+uint8_t *at_ring_map(void)
+{
+  TS_PAGE3 = PG_NETBUF;
+  return WIN3;
+}

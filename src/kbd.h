@@ -2,6 +2,7 @@
 // The decoder (kbd_decode) is plain C, tested on the host; kbd_poll reads the hardware (kbd_hw.c).
 #pragma once
 #include <stdint.h>
+#include "bank.h"
 
 // key codes: 0x20..0xFF = a CP866 character; below 0x20 and from 0x100 = special keys;
 // KM_* bits are added to special keys and to Ctrl / Alt combinations
@@ -36,8 +37,8 @@ void kbd_reset(kbd_state_t *s);
 // one scan code byte in; a key out (K_NONE while a code is incomplete, for releases and modifiers)
 uint16_t kbd_decode(kbd_state_t *s, uint8_t code);
 
-// hardware (kbd_hw.c)
+// hardware (kbd_hw.c), bank BANK_UI
 extern kbd_state_t kbd;
 extern uint8_t kbd_ok;      // 0: no PS/2 key buffer found
-void kbd_init(void);
-uint16_t kbd_get(void);     // next key or K_NONE, never waits
+void kbd_init(void) BANKED;
+uint16_t kbd_get(void) BANKED;     // next key or K_NONE, never waits

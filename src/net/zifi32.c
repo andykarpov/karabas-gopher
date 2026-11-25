@@ -47,7 +47,6 @@ __sfr __at(0x77) SPI_CTRL;
 #define CMD_RESET        0xEE
 
 // the chunk / URL buffer: the receive ring of the AT driver (not used while ZiFi32 is the backend)
-extern uint8_t at_ring[AT_RING];
 static uint16_t chunk_len, chunk_pos;
 static uint8_t at_end, last_status;
 
@@ -204,7 +203,7 @@ uint8_t zf_own_ip(char *ip)
 static uint16_t read_data(void)
 {
   uint16_t n = (uint16_t)rd32(R_SIZE), i;
-  uint8_t *p = at_ring;
+  uint8_t *p = at_ring_map();
   if (n > AT_RING) n = AT_RING;
   SPI_CTRL = CS_ON;
   SPI_DATA = C_RD_DATA;
@@ -228,12 +227,14 @@ uint8_t zf_scan(kg_wifi_ap_t *aps, uint8_t *count, uint8_t max)
   n = read_data();
   wait(50, S_S2M);
   // NUM_APS, then AUTH, RSSI, CHAN, SSID_LEN, SSID per network
-  p = at_ring;
+  {
+  uint8_t *ring = at_ring_map();
+  p = ring;
   num = n ? *p++ : 0;
-  for (i = 0; i < num && p + 4 <= at_ring + n; i++) {
+  for (i = 0; i < num && p + 4 <= ring + n; i++) {
     kg_wifi_ap_t ap;
     uint8_t len = p[3];
-    if (p + 4 + len > at_ring + n) break;
+    if (p + 4 + len > ring + n) break;
     ap.ecn = p[0];
     ap.rssi = (int8_t)p[1];
     if (len > KG_WIFI_SSID_MAX) len = KG_WIFI_SSID_MAX;
@@ -241,6 +242,7 @@ uint8_t zf_scan(kg_wifi_ap_t *aps, uint8_t *count, uint8_t max)
     ap.ssid[len] = 0;
     p += 4 + p[3];
     kg_wifi_ap_add(aps, count, max, &ap);
+  }
   }
   return ZF_OK;
 }
@@ -273,7 +275,7 @@ uint8_t zf_leave(void)
 // that starts with "/" goes through exactly; an empty one becomes "/"; others cannot be sent.
 uint8_t zf_gopher_open(const char *host, uint16_t port, const char *sel)
 {
-  char *u = (char *)at_ring;
+  char *u = (char *)at_ring_map();
   uint8_t s, i;
   uint16_t n;
   if (sel[0] && sel[0] != '/') return ZF_NOSEL;
@@ -329,7 +331,7 @@ int16_t zf_gopher_read(uint8_t *buf, uint16_t max)
   }
   n = chunk_len - chunk_pos;
   if (n > max) n = max;
-  memcpy(buf, at_ring + chunk_pos, n);
+  memcpy(buf, at_ring_map() + chunk_pos, n);
   chunk_pos += n;
   return (int16_t)n;
 }

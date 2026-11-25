@@ -14,7 +14,7 @@ uint8_t kbd_ok;
 // karabas: register #0C (bit 7 = 0 buffer instead of the EEPROM, bit 0 = clear) makes #F0 read 0 when
 // empty. Pentevo / Unreal: 2 written to #F0..#FF turns the buffer on (0 / 1 = off). The second write
 // is made only if the first way left #F0 not empty, so the CMOS of karabas is not written.
-void kbd_init(void)
+void kbd_init(void) BANKED
 {
   P_EFF7 = 0x80;
   CMOS_ADDR = 0x0C;
@@ -29,7 +29,7 @@ void kbd_init(void)
   kbd_reset(&kbd);
 }
 
-uint16_t kbd_get(void)
+uint16_t kbd_get(void) BANKED
 {
   uint8_t c;
   uint16_t k;

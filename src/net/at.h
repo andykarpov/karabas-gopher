@@ -14,6 +14,10 @@ enum { AT_OK, AT_ERROR, AT_TIMEOUT, AT_CANCEL, AT_CLOSED };
 
 typedef void (*at_line_fn)(const char *line);
 
+// the receive ring, AT_RING bytes (Z80: page PG_NETBUF in window 3, tr_ts.c; host: an array);
+// also the chunk / URL buffer of zifi32.c
+uint8_t *at_ring_map(void);
+
 void at_begin(const transport_t *t);
 // sends cmd + CR LF, waits for OK / ERROR / FAIL; other lines go to fn (may be 0); timeout in ticks
 uint8_t at_cmd(const char *cmd, uint16_t timeout, at_line_fn fn);

@@ -11,6 +11,8 @@
 #include "../../src/net/at.h"
 
 static int fd;
+static uint8_t ring_mem[AT_RING];
+uint8_t *at_ring_map(void) { return ring_mem; }
 static uint8_t pend[256];
 static int npend;
 

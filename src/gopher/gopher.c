@@ -4,8 +4,6 @@
 #include "doc.h"
 #include "../net/net.h"
 
-#define PG_DOC  0x40       // 16 data pages #40..#4F
-#define PG_IDX  0x3E       // index pages #3E, #3F
 
 uint32_t gopher_bytes;
 static uint8_t buf[128];

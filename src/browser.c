@@ -14,7 +14,6 @@
 #include "gopher/cp.h"
 #include "net/net.h"
 
-#define PG_HIST   0x3D
 #define TOP_Y     1               // first row of the document
 #define ROWS      (TXT_ROWS - 3)  // 27 rows: 1..27, row 28 = status, 29 = help
 #define STATUS_Y  (TXT_ROWS - 2)

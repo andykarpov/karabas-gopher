@@ -29,7 +29,11 @@ __sfr __banked __at(0x2AAF) TS_INTMASK;
 // current bank (pages #30 + 2n, #31 + 2n), window 3 = paged buffers.
 #define PG_COMMON     0x20
 #define PG_SCRATCH    0x23    // the INI text of config.c (2 KB at #C000)
-#define PG_BANK(n)    (0x30 + 2 * (n))
+#define PG_BANK(n)    (0x30 + 2 * (n))   // banks 1..7: #32..#3F
+#define PG_DOC        0x40    // 16 pages: the document (gopher/doc.c)
+#define PG_IDX        0x50    // 2 pages: its row index
+#define PG_HIST       0x52    // the history (browser.c)
+#define PG_NETBUF     0x53    // the AT receive ring / ZiFi32 chunks (1 KB)
 #define PG_TEXT       0x24    // text mode: chars + attributes (VPAGE)
 #define PG_FONT       0x25    // its font: VPAGE ^ 1, 2 KB at the start
 #define WIN3          ((uint8_t *)0xC000)

@@ -6,7 +6,7 @@ static const transport_t *tr;
 static char line[AT_LINE_MAX];
 static uint8_t len;
 static uint16_t ipd_left;              // raw TCP bytes still to come in the current +IPD
-uint8_t at_ring[AT_RING];           // also the chunk buffer of zifi32.c
+static uint8_t *ring;               // at_ring_map(): set before each use
 static uint16_t rd, wr;                // ring positions (free running)
 static uint8_t closed, prompt, send_ok, result;   // result: 0xFF while a command runs
 static at_line_fn line_fn;
@@ -47,7 +47,7 @@ static void end_line(void)
 static void byte_in(uint8_t c)
 {
   if (ipd_left) {
-    at_ring[wr++ & (AT_RING - 1)] = c;
+    ring[wr++ & (AT_RING - 1)] = c;
     ipd_left--;
     return;
   }
@@ -69,6 +69,7 @@ static void byte_in(uint8_t c)
 static void pump(void)
 {
   uint8_t buf[CHUNK], n, i;
+  ring = at_ring_map();
   for (;;) {
     if (AT_RING - RING_USED() < CHUNK) return;
     n = tr->avail();
@@ -259,8 +260,9 @@ int16_t at_tcp_recv(uint8_t *buf, uint16_t max)
 {
   uint16_t n = 0;
   pump();
+  ring = at_ring_map();
   while (n < max && RING_USED()) {
-    buf[n++] = at_ring[rd++ & (AT_RING - 1)];
+    buf[n++] = ring[rd++ & (AT_RING - 1)];
   }
   if (n) pump();
   if (!n && closed && !ipd_left) return -1;
