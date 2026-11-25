@@ -6,10 +6,10 @@
 SDCC    ?= sdcc
 SDAS    ?= sdasz80
 PY      ?= python3 -I
+VERSION := $(shell cat VERSION)
 CFLAGS  := -mz80 --std-sdcc11 --opt-code-size -Isrc -Isrc/fatfs -Isrc/net -Isrc/gopher -Ibuild -DAPP_VERSION=\"$(VERSION)\"
 LDFLAGS := -mz80 --no-std-crt0 --code-loc 0x0100 --data-loc 0x2000 -Wl-b_BANK1=0x14000 -Wl-b_BANK2=0x24000 -Wl-b_BANK3=0x34000 -Wl-b_BANK4=0x44000
 HOSTCC  ?= gcc
-VERSION := $(shell cat VERSION)
 SJASM   ?= /opt/sjasmplus/sjasmplus
 
 # sources are UTF-8; they are converted to CP866 (the font of the screen) into build/ first.

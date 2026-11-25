@@ -193,17 +193,17 @@ static uint8_t rtc_reg(uint8_t r, uint8_t bcd)
 
 DWORD get_fattime(void)
 {
-  uint8_t b, bcd, y, mo, d, h, mi, s;
+  uint8_t b, bcd, y, mo, d, h, mi, s, pm;
   RTC_EFF7 = 0x80;
   RTC_ADDR = 0x0B;
   b = RTC_DATA;
   bcd = !(b & 4);
-  s = rtc_reg(0, bcd); mi = rtc_reg(2, bcd); h = rtc_reg(4, bcd);
-  d = rtc_reg(7, bcd); mo = rtc_reg(8, bcd); y = rtc_reg(9, bcd);
-  if (!(b & 2)) {                            // 12 hours + PM
-    RTC_ADDR = 4;
-    h = h % 12 + (RTC_DATA & 0x80 ? 12 : 0);
-  }
+  do {                                       // again if the clock ticked while reading
+    s = rtc_reg(0, bcd); mi = rtc_reg(2, bcd); h = rtc_reg(4, bcd);
+    pm = RTC_DATA & 0x80;
+    d = rtc_reg(7, bcd); mo = rtc_reg(8, bcd); y = rtc_reg(9, bcd);
+  } while (rtc_reg(0, bcd) != s);
+  if (!(b & 2)) h = h % 12 + (pm ? 12 : 0);  // 12 hours + PM
   if (y > 99 || !mo || mo > 12 || !d || d > 31 || h > 23 || mi > 59 || s > 59)
     return (DWORD)(2026 - 1980) << 25 | (DWORD)1 << 21 | (DWORD)1 << 16;   // no clock: 1 Jan 2026
   return (DWORD)(y + 20) << 25 | (DWORD)mo << 21 | (DWORD)d << 16 |

@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q sdcc python3-pil dosfstools
           git clone -q --depth 1 --branch v1.20.1 https://github.com/z00m128/sjasmplus.git "$RUNNER_TEMP/sjasmplus"
-          make -s -C "$RUNNER_TEMP/sjasmplus" -j4
+          make -s -C "$RUNNER_TEMP/sjasmplus" -j4 USE_LUA=0
           sdcc -v | head -1
       - name: Build
         run: make SJASM="$RUNNER_TEMP/sjasmplus/sjasmplus"
