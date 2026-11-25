@@ -22,6 +22,14 @@ init:   ld      hl, #_ay_r      ; registers, ay_env, ay_flags = 0
 play:   xor     a
         ld      (_ay_env), a
         call    _ay_play
+        ld      a, (_ay_flags)  ; the end of the song: silence (the interrupt stops calling PLAY)
+        rla
+        jr      nc, 4$
+        xor     a
+        ld      (_ay_r + 8), a
+        ld      (_ay_r + 9), a
+        ld      (_ay_r + 10), a
+4$:
 ; ay_r -> the AY (chip 0 of a TurboSound): registers 0..12, 13 only if ay_env
         ld      bc, #0xFFFD
         ld      a, #0xFF

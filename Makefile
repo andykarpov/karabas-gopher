@@ -108,5 +108,18 @@ emu: build/gopher.spg
 clean:
 	rm -rf build
 
-.PHONY: all font font-psf test emu clean
+.PHONY: all font font-psf test emu aytest clean
 .SECONDARY:
+
+# a C player blob on the Z80 in unreal-ng (tests/emu/aybench.c): make aytest P=stc M=tests/data/ay/stc1.stc
+aytest: build/crt0.rel build/text.rel build/$(P).bin tests/emu/aybench.c | build
+	iconv -f UTF-8 -t CP866 tests/emu/aybench.c > build/aybench.866.c
+	set -- $$($(PY) tests/emu/ayref.py $(basename $(M)).regs); \
+	$(SDCC) $(CFLAGS) -DAY_FRAMES=$$1 -DAY_HASH=$$2 -c build/aybench.866.c -o build/aybench.rel
+	$(SDCC) -mz80 --no-std-crt0 --code-loc 0x0100 --data-loc 0x2000 build/crt0.rel build/aybench.rel build/text.rel -o build/aytest.ihx
+	rm -rf build/aypages && $(PY) tools/ihxsplit.py build/aytest.ihx build/aytest.map build/aypages
+	python3 -c "import sys; b=open('build/$(P).bin','rb').read(); m=open('$(M)','rb').read(); open('build/aypage.bin','wb').write(b + bytes(0x1200 - len(b)) + m)"
+	$(PY) tools/mkspg.py build/aytest.spg --page 0x20 --desc aytest \
+	  $$(for f in build/aypages/page*.bin; do p=$${f##*/page}; echo --block 0x$${p%.bin}:$$f; done) \
+	  --block 0x25:res/font866.bin --block 0x54:build/aypage.bin
+	emu-shot unreal --machine TSL --sd $(HOME)/.local/share/emu-shot/tsconf-sd.img --file build/aytest.spg wait:$(or $(WAIT),12) shot:build/aytest.png
