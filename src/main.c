@@ -23,8 +23,10 @@ void main(void)
   r = cfg_mount();
   if (r)
     settings_msg(m_nosd, r);
-  else if ((r = cfg_load()) == FR_NO_FILE || r == FR_NO_PATH)
+  else if ((r = cfg_load()) == FR_NO_FILE || r == FR_NO_PATH) {
     settings_msg(m_nofile, 0xFF);
+    if (cfg_zifi_read()) settings_offer_zifi();
+  }
   else if (r)
     settings_msg(m_err, r);
   else

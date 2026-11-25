@@ -9,6 +9,7 @@ static FATFS fs;
 static char ini_buf[2048];
 static ini_t ini;
 static FIL f;
+char zifi_ssid[33], zifi_pass[64];
 
 // a new file: the comments a person editing it on a PC needs
 static const char template[] =
@@ -94,4 +95,42 @@ uint8_t cfg_save(void) BANKED
   if (!r && n != ini.len) r = FR_DENIED;
   if (f_close(&f) && !r) r = FR_DISK_ERR;
   return r;
+}
+
+static char lower(char c) { return (c >= 'A' && c <= 'Z') ? c + 32 : c; }
+
+// "key: value" or "key = value" of the old client, the key case-insensitive
+static void zifi_value(const char *line, const char *key, char *out, uint8_t max)
+{
+  uint8_t n;
+  while (*line == ' ' || *line == '\t') line++;
+  for (n = 0; key[n]; n++)
+    if (lower(line[n]) != key[n]) return;
+  line += n;
+  while (*line == ' ' || *line == '\t') line++;
+  if (*line != ':' && *line != '=') return;
+  line++;
+  while (*line == ' ' || *line == '\t') line++;
+  for (n = 0; n < max - 1 && line[n] && line[n] != '\r' && line[n] != '\n'; n++) out[n] = line[n];
+  while (n && (out[n - 1] == ' ' || out[n - 1] == '\t')) n--;
+  out[n] = 0;
+}
+
+uint8_t cfg_zifi_read(void) BANKED
+{
+  UINT n;
+  char *p, *e;
+  zifi_ssid[0] = zifi_pass[0] = 0;
+  if (f_open(&f, ZIFI_INI, FA_READ)) return 0;
+  if (f_read(&f, ini_buf, sizeof(ini_buf) - 1, &n)) n = 0;
+  f_close(&f);
+  ini_buf[n] = 0;
+  for (p = ini_buf; *p; p = e) {
+    for (e = p; *e && *e != '\n'; e++) ;
+    if (*e) *e++ = 0;
+    zifi_value(p, "ssid", zifi_ssid, sizeof(zifi_ssid));
+    zifi_value(p, "password", zifi_pass, sizeof(zifi_pass));
+  }
+  ini_init(&ini, ini_buf, sizeof(ini_buf), 0);   // the buffer held ZIFI.INI: no gopher.ini text
+  return zifi_ssid[0] != 0;
 }

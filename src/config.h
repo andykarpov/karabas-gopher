@@ -5,6 +5,7 @@
 
 #define CFG_DIR   "/zifi"
 #define CFG_PATH  "/zifi/gopher.ini"
+#define ZIFI_INI  "/zifi/ZIFI.INI"    // the old ZiFi client: "SSID: x" / "password: y" lines, read only
 
 enum { BK_AUTO, BK_ZIFI32, BK_ZIFI, BK_USB, BK_COUNT };
 enum { CS_UTF8, CS_CP1251, CS_KOI8, CS_CP866, CS_COUNT };
@@ -31,3 +32,6 @@ uint8_t cfg_mount(void) BANKED;    // FR_OK or a FatFs error
 // FR_OK (0) or a FatFs error; a missing file is FR_NO_FILE (the defaults stay)
 uint8_t cfg_load(void) BANKED;
 uint8_t cfg_save(void) BANKED;
+// ZIFI.INI of the old client into zifi_ssid / zifi_pass (never written); 1 if it names a network
+uint8_t cfg_zifi_read(void) BANKED;
+extern char zifi_ssid[33], zifi_pass[64];

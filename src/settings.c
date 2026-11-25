@@ -152,6 +152,22 @@ static void cycle(uint8_t i, int8_t d)
   *v = (uint8_t)((*v + n + d) % n);
 }
 
+uint8_t settings_offer_zifi(void) BANKED
+{
+  uint16_t k;
+  draw_all(0xFF);
+  txt_print(LX, 20, TXT_COLS - 2 * LX, A_MSG, "Своих настроек нет, но есть " ZIFI_INI " старого клиента:");
+  txt_print(LX, 21, 15, A_BG, "сеть Wi-Fi");
+  txt_print(LX + 15, 21, 40, A_BG, zifi_ssid);
+  txt_print(LX, 23, TXT_COLS - 2 * LX, A_MSG, "Взять из него сеть и пароль?  Enter \xc4 да, Esc \xc4 нет");
+  do k = wait_key(); while (k != K_ENTER && k != K_ESC);
+  if (k == K_ESC) return 0;
+  strcpy(cfg.ssid, zifi_ssid);
+  strcpy(cfg.pass, zifi_pass);
+  settings_msg("Сеть взята из " ZIFI_INI ", F2 сохранит её в " CFG_PATH, 0xFF);
+  return 1;
+}
+
 void settings_run(void) BANKED
 {
   uint8_t sel = 0, r;
