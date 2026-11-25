@@ -8,10 +8,9 @@ Our own Gopher browser for TS-Conf (`.spg`, Wild Commander / ts-bios), with the 
 
 - **ZiFi32**: ESP32-S3 with the tslabs firmware (`pentevo/esp32`, SPI `ESP32_SPI`), Mini G only;
 - **ZiFi**: ESP8266 with the stock AT firmware on the TS ZiFi UART (#C0EF / #C1EF / #C7EF), 115200, all boards;
-- **AY**: ESP8266 at 9600 bit-banged on the AY port A (needs a tsconf core change, see PLAN);
 - **USB serial**: TS RS232 / EVO RS232 (#C2EF.. / #F8EF..) through the MCU to the clean USB CDC (if02) or a USB-UART adapter.
 
-Docs, in Russian: `docs/PLAN.md` (proposal, decisions, phases), `docs/BACKLOG.md` (open items, keep it current). Follow the phases; record a changed decision in PLAN.md. Status 2026-11-25: proposal, **no code until the user's go** ([[feedback-discuss-means-wait]]).
+Docs, in Russian: `docs/PLAN.md` (proposal, decisions, phases), `docs/BACKLOG.md` (open items, keep it current). Follow the phases; record a changed decision in PLAN.md. Status 2026-11-25: plan approved (decisions in PLAN §7: C on SDCC, PC AT proxy + real ESP8266 on a USB-UART adapter, own INI format, no AY backend, repo local only, name open: maybe `karabas-gopher`).
 
 ## Rules
 
