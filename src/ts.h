@@ -36,8 +36,8 @@ __sfr __banked __at(0x2AAF) TS_INTMASK;
 #define PG_NETBUF     0x53    // the AT receive ring / ZiFi32 chunks (1 KB)
 #define PG_MUSIC      0x54    // 3 pages: the PT3 player at #4000 (SPG) + the module at PT3_MOD
 #define PG_LIST       0x57    // the play list (player.c)
-#define PT3_MOD       0x4900  // the module in windows 1..3 while the player runs
-#define PT3_MAX       (0xC000 - PT3_MOD)
+#define PT3_MOD       0x5200  // the module in windows 1..3 while the player runs (2 players before it)
+#define PT3_MAX       ((uint16_t)(0x10000L - PT3_MOD))   // to the end of window 3: 44544
 #define PG_TEXT       0x24    // text mode: chars + attributes (VPAGE)
 #define PG_FONT       0x25    // its font: VPAGE ^ 1, 2 KB at the start
 #define WIN3          ((uint8_t *)0xC000)

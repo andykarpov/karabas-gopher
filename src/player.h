@@ -29,4 +29,5 @@ uint8_t player_playable(const char *sel, uint8_t slen);
 
 // crt0.s
 extern volatile uint8_t pt3_on, pt3_end;
+extern uint16_t pt3_mod2;              // the TurboSound half (0: one AY), read by INIT
 void pt3_cmd(uint8_t entry);           // 0 INIT, 6 MUTE

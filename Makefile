@@ -49,7 +49,8 @@ build/pages.stamp: build/gopher.ihx tools/ihxsplit.py
 
 # the PT3 player of S.V.Bulba at #4000 of page #54 (src/player/pt3.asm, crt0.s calls it)
 build/pt3.bin: src/player/pt3.asm src/player/pt3play.asm | build
-	$(SJASM) --nologo --msg=war --inc=src/player $<
+	sed 's/module pt3player/module pt3playerb/' src/player/pt3play.asm > build/pt3play_b.asm
+	$(SJASM) --nologo --msg=war --inc=src/player --inc=build $<
 
 # the font and the player go straight into their pages (#25, #54: src/ts.h)
 build/gopher.spg: build/pages.stamp res/font866.bin build/pt3.bin tools/mkspg.py

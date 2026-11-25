@@ -101,6 +101,7 @@ static void bar_view(void)
 
 void browse_progress(void) BANKED
 {
+  if (gopher_saving == 2) return;            // a track loads: the player part of the row shows it
   uint32_t k = gopher_bytes >> 10;           // whole KB: no 32-bit printf
   uint16_t dt = ticks - gopher_t0;
   char nb[12];
@@ -207,8 +208,7 @@ static void hint(void)
     }
   txt_fill(0, HINT_Y, TXT_COLS, ' ', A_HINT);
   ui_hint(1, HINT_Y, 44, A_HINT, A_HINTK, h);
-  if (pl_state != PL_STOP)
-    ui_hint(TXT_COLS - 34, HINT_Y, 33, A_HINT, A_HINTK, "~F7~ пауза ~F8~ дальше ~Shift+F7~ стоп");
+  player_draw();                             // its keys at the right
 }
 
 static void draw_all(void)
@@ -419,7 +419,7 @@ static uint8_t sel_url(void)
 
 static const char *play_error(uint8_t r)
 {
-  if (r == G_BIG) return "Модуль больше 45 КБ: только скачать (F10)";
+  if (r == G_BIG) return "Модуль больше 43 КБ: только скачать (F10)";
   if (r == PL_NOTPT3) return "Это не PT3-модуль";
   return fetch_error(r);
 }

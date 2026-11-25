@@ -107,7 +107,8 @@ irq:
         push    ix
         call    map_music
         call    #0x4003         ; PLAY
-        ld      a, (#0x4013)    ; SETUP bit 7: the end was passed (no loop: muted)
+        ld      hl, (#0x4009)   ; SETUP bit 7: the end was passed (no loop: muted)
+        ld      a, (hl)
         and     #0x80
         jr      z, 1$
         xor     a
@@ -143,7 +144,8 @@ unmap_music:
         out     (c), a
         ret
 
-; void pt3_cmd(uint8_t entry): 0 INIT (the module at #4900), 6 MUTE; interrupts off meanwhile
+; void pt3_cmd(uint8_t entry): 0 INIT (the module at #5200, its TurboSound half at pt3_mod2 or 0),
+; 6 MUTE; interrupts off meanwhile
 _pt3_cmd::
         di
         push    ix
@@ -153,7 +155,8 @@ _pt3_cmd::
         ld      hl, #1$
         push    hl
         push    de
-        ld      hl, #0x4900
+        ld      hl, #0x5200
+        ld      de, (_pt3_mod2)
         ret                     ; to #4000 + entry, back to 1$
 1$:     call    unmap_music
         pop     ix
@@ -200,5 +203,7 @@ _pt3_on::                       ; 1: the interrupt plays
         .ds     1
 _pt3_end::                      ; 1: the module came to its end (set by the interrupt)
         .ds     1
+_pt3_mod2::                     ; the second half of a TurboSound module, 0: one AY
+        .ds     2
 cur_bank:
         .ds     1

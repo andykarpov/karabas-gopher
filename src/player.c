@@ -61,6 +61,10 @@ void player_draw(void)
   char b[48], *p = b;
   uint8_t x = 34, w = TXT_COLS - 6 - 11 - x, n;      // the backend name (up to 10) at the right
   if (ui_lay_y != TXT_ROWS - 3) return;       // only on the browser screen (its status row)
+  // the keys of the player at the right of the hint row below
+  if (pl_state == PL_STOP) txt_fill(TXT_COLS - 34, ui_lay_y + 1, 33, ' ', ATTR(COL_WHITE, COL_BLUE));
+  else ui_hint(TXT_COLS - 34, ui_lay_y + 1, 33, ATTR(COL_WHITE, COL_BLUE), ATTR(COL_BYELLOW, COL_BLUE),
+               "~F7~ пауза ~F8~ дальше ~Shift+F7~ стоп");
   if (pl_state == PL_STOP && !pl_loading) { txt_fill(x, ui_lay_y, w, ' ', A_HELP); return; }
   *p++ = G_NOTE;
   *p++ = pl_loading ? '.' : pl_state == PL_PLAY ? G_PLAY : G_PAUSE;
@@ -108,13 +112,37 @@ void player_pause(void)
   player_draw();
 }
 
-// "ProTracker 3." / "Vortex Tracker II" at the start of a PT3 module
-static uint8_t is_pt3(void)
+// n bytes of the loaded module from offset off (the music pages through window 3)
+static void mod_read(uint16_t off, uint8_t *out, uint8_t n)
 {
-  const char *m;
-  PAGE3(PG_MUSIC + ((PT3_MOD - 0x4000) >> 14));
-  m = (const char *)WIN3 + ((PT3_MOD - 0x4000) & 0x3FFF);
+  uint16_t a = PT3_MOD - 0x4000 + off;
+  while (n--) {
+    PAGE3(PG_MUSIC + (a >> 14));
+    *out++ = WIN3[a & 0x3FFF];
+    a++;
+  }
+}
+
+// "ProTracker 3." / "Vortex Tracker II" at the start of a PT3 module
+static uint8_t is_pt3(uint16_t off)
+{
+  char m[17];
+  mod_read(off, (uint8_t *)m, 17);
   return !memcmp(m, "ProTracker 3.", 13) || !memcmp(m, "Vortex Tracker II", 17);
+}
+
+// a TurboSound module ends with "PT3!" len1 "PT3!" len2 "02TS": pt3_mod2 = its second half
+static void find_ts(uint16_t len)
+{
+  uint8_t t[16];
+  uint16_t l1;
+  pt3_mod2 = 0;
+  if (len < 200) return;
+  mod_read(len - 16, t, 16);
+  if (memcmp(t, "PT3!", 4) || memcmp(t + 6, "PT3!", 4) || memcmp(t + 12, "02TS", 4)) return;
+  l1 = t[4] | (uint16_t)t[5] << 8;
+  if (l1 < 100 || l1 >= len - 16 || !is_pt3(l1)) return;
+  pt3_mod2 = PT3_MOD + l1;
 }
 
 uint8_t player_play(uint8_t i)
@@ -137,8 +165,9 @@ uint8_t player_play(uint8_t i)
   player_draw();
   r = gopher_load(&pu);
   pl_loading = 0;
-  if (r == G_OK && !is_pt3()) r = PL_NOTPT3;
+  if (r == G_OK && !is_pt3(0)) r = PL_NOTPT3;
   if (r != G_OK) { player_draw(); return r; }
+  find_ts((uint16_t)gopher_bytes);
   pt3_end = 0;
   pt3_cmd(0);
   pl_played = 0;
