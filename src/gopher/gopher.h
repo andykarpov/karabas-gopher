@@ -4,7 +4,7 @@
 #include "../bank.h"
 #include "url.h"
 
-enum { G_OK, G_NONET, G_NOCONN, G_SEND, G_CANCEL, G_TIMEOUT };
+enum { G_OK, G_NONET, G_NOCONN, G_SEND, G_CANCEL, G_TIMEOUT, G_NOSEL };
 
 // u in RAM; wrap 0 = menu rows, else text wrapped at that width; *bytes = received
 uint8_t gopher_fetch(const gurl_t *u, uint8_t wrap) BANKED;

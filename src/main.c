@@ -14,7 +14,7 @@ static const char m_nosd[] = "Нет SD-карты: настройки не со
 static const char m_nofile[] = "Файла " CFG_PATH " нет: настройки по умолчанию, F2 создаст его";
 static const char m_err[] = "Ошибка чтения " CFG_PATH;
 static const char m_ok[] = "Настройки прочитаны из " CFG_PATH;
-static const char m_search[] = "Поиск модулей (ZiFi, USB serial)...";
+static const char m_search[] = "Поиск модулей (ZiFi32, ZiFi, USB serial), подключение к сети...";
 static uint8_t cfg_zifi_offered;
 
 void main(void)

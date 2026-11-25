@@ -36,8 +36,6 @@ static const item_t items[] = {
   { "Домашняя страница",      T_TEXT,   cfg.home,       255,      0 },
   { "Кодировка",              T_CHOICE, &cfg.charset,   CS_COUNT, charset_names },
   { "Папка загрузок",         T_TEXT,   cfg.downloads,  63,       0 },
-  { "ZiFi32: сеть Wi-Fi",     T_TEXT,   cfg.ssid,       32,       0 },
-  { "ZiFi32: пароль",         T_PASS,   cfg.pass,       63,       0 },
   { "ZiFi32: автоподключение", T_CHOICE, &cfg.autoconn, 2,        yes_no },
 };
 #define N_ITEMS (sizeof(items) / sizeof(items[0]))

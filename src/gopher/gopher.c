@@ -24,21 +24,10 @@ uint8_t gopher_fetch(const gurl_t *u, uint8_t wrap) BANKED
   gopher_bytes = 0;
   doc_reset(cfg.charset, wrap);
   if (!net.active) return G_NONET;
-  r = net_open(u->host, u->port);
+  r = net_gopher_open(u);                // the selector (may hold TAB + words) + CR LF
   if (r == AT_CANCEL) return G_CANCEL;
+  if (r == NET_NOSEL) return G_NOSEL;
   if (r) return G_NOCONN;
-  {
-    // the request: selector (may hold TAB + words) CR LF, sent in pieces through buf
-    uint16_t len = (uint16_t)strlen(u->sel), off = 0;
-    while (off < len) {
-      uint16_t k = len - off > sizeof(buf) ? sizeof(buf) : len - off;
-      memcpy(buf, u->sel + off, k);
-      if (net_send(buf, k)) { net_close(); return G_SEND; }
-      off += k;
-    }
-    buf[0] = '\r'; buf[1] = '\n';
-    if (net_send(buf, 2)) { net_close(); return G_SEND; }
-  }
   t0 = ticks;
   while ((n = net_recv(buf, sizeof(buf))) >= 0) {
     if (!n) {

@@ -35,7 +35,7 @@ typedef struct {
 } hist_t;
 
 static hist_t cur;                // what is shown
-static gurl_t go;                 // where to go next
+gurl_t ui_go;                     // where to go next (also the address of the test screen)
 static char line[300], disp[84], query[80], name[61];
 static char link_name[61];      // the text of the link that led to the page shown (bookmark name)
 static uint8_t nhist;
@@ -217,6 +217,7 @@ static const char *fetch_error(uint8_t r)
     case G_SEND: return "Ошибка отправки запроса";
     case G_CANCEL: return "Прервано";
     case G_TIMEOUT: return "Сервер замолчал (20 с)";
+    case G_NOSEL: return "Этот адрес ZiFi32 не открывает: селектор без \"/\" (нужна новая прошивка)";
   }
   return "Ошибка";
 }
@@ -224,16 +225,16 @@ static const char *fetch_error(uint8_t r)
 // shows go: 1 if shown (cur replaced, the old one into the history when push)
 static uint8_t open_url(uint8_t push)
 {
-  uint8_t r, mode = go.type == '0' ? M_TEXT : M_MENU;
-  if (go.type != '0' && go.type != '1' && go.type != '7') {
-    status(go.type == '8' || go.type == 'T' ? "Telnet не поддерживается" :
+  uint8_t r, mode = ui_go.type == '0' ? M_TEXT : M_MENU;
+  if (ui_go.type != '0' && ui_go.type != '1' && ui_go.type != '7') {
+    status(ui_go.type == '8' || ui_go.type == 'T' ? "Telnet не поддерживается" :
            "Загрузка файлов \xc4 в Ф5", A_STAT);
     return 0;
   }
   if (push && cur.u.host[0]) hist_push();
   status("Соединение... (Esc \xc4 прервать)", A_STAT);
-  r = gopher_fetch(&go, mode == M_TEXT ? TXT_COLS : 0);
-  memcpy(&cur.u, &go, sizeof(gurl_t));
+  r = gopher_fetch(&ui_go, mode == M_TEXT ? TXT_COLS : 0);
+  memcpy(&cur.u, &ui_go, sizeof(gurl_t));
   cur.mode = mode;
   cur.top = 0;
   first_link();
@@ -257,7 +258,7 @@ static void open_sel(void)
   if (cur.mode == M_BOOK) {
     memcpy(line, it.sel, it.slen);
     line[it.slen] = 0;
-    if (url_parse(line, &go)) open_url(1);
+    if (url_parse(line, &ui_go)) open_url(1);
     return;
   }
   if (it.type == 'h' && it.slen > 4 && !strncmp(it.sel, "URL:", 4)) {
@@ -266,20 +267,20 @@ static void open_sel(void)
     status(disp, A_STAT);
     return;
   }
-  memset(&go, 0, sizeof(go));
-  for (i = 0; i < it.hlen && i < URL_HOST - 1; i++) go.host[i] = it.host[i];
-  go.port = it.port;
-  go.type = it.type;
-  memcpy(go.sel, it.sel, it.slen);
-  go.sel[it.slen] = 0;
-  if (!go.host[0]) memcpy(go.host, cur.u.host, URL_HOST);
+  memset(&ui_go, 0, sizeof(ui_go));
+  for (i = 0; i < it.hlen && i < URL_HOST - 1; i++) ui_go.host[i] = it.host[i];
+  ui_go.port = it.port;
+  ui_go.type = it.type;
+  memcpy(ui_go.sel, it.sel, it.slen);
+  ui_go.sel[it.slen] = 0;
+  if (!ui_go.host[0]) memcpy(ui_go.host, cur.u.host, URL_HOST);
   if (it.type == '7') {
     query[0] = 0;
     status("Поиск:", A_STAT);
     if (!ui_edit(8, STATUS_Y, TXT_COLS - 9, query, sizeof(query) - 1, 2) || !query[0]) { status("", A_BG); return; }
-    if (strlen(go.sel) + strlen(query) + 2 > URL_SEL) { status("Слишком длинно", A_STAT); return; }
-    strcat(go.sel, "\t");
-    strcat(go.sel, query);
+    if (strlen(ui_go.sel) + strlen(query) + 2 > URL_SEL) { status("Слишком длинно", A_STAT); return; }
+    strcat(ui_go.sel, "\t");
+    strcat(ui_go.sel, query);
   }
   open_url(1);
 }
@@ -319,7 +320,7 @@ static void ask_url(void)
   if (!cur.u.host[0]) strcpy(line, "gopher://");
   status("Адрес:", A_STAT);
   if (!ui_edit(8, STATUS_Y, TXT_COLS - 9, line, 255, 2)) { status("", A_BG); return; }
-  if (!url_parse(line, &go)) { status("Неверный адрес", A_STAT); return; }
+  if (!url_parse(line, &ui_go)) { status("Неверный адрес", A_STAT); return; }
   link_name[0] = 0;
   open_url(1);
 }
@@ -330,7 +331,7 @@ static void go_back(void)
   if (!hist_pop(&h)) { status("Это первая страница", A_DIM); return; }
   link_name[0] = 0;
   if (h.mode == M_BOOK) { open_bookmarks(0); return; }
-  memcpy(&go, &h.u, sizeof(gurl_t));
+  memcpy(&ui_go, &h.u, sizeof(gurl_t));
   if (open_url(0)) {
     cur.top = h.top;
     cur.sel = h.sel;
@@ -343,7 +344,7 @@ static void go_back(void)
 static void go_home(uint8_t push)
 {
   link_name[0] = 0;
-  if (url_parse(cfg.home, &go)) open_url(push);
+  if (url_parse(cfg.home, &ui_go)) open_url(push);
   else status("Домашняя страница не задана: F9 \xc4 сеть \xc4 настройки", A_STAT);
 }
 
@@ -372,7 +373,7 @@ void browser_run(void) BANKED
       case K_F1 + 3: open_bookmarks(1); continue;
       case K_F1 + 4:
         if (cur.mode == M_BOOK) open_bookmarks(0);
-        else { memcpy(&go, &cur.u, sizeof(gurl_t)); old_top = cur.top; open_url(0); cur.top = old_top; draw_doc(); }
+        else { memcpy(&ui_go, &cur.u, sizeof(gurl_t)); old_top = cur.top; open_url(0); cur.top = old_top; draw_doc(); }
         continue;
       case K_F1 + 5: add_bookmark(); continue;
       case K_DEL:

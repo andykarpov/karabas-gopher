@@ -4,6 +4,8 @@
 #include "../bank.h"
 #include "../config.h"
 #include "at.h"
+#include "zifi32.h"
+#include "../gopher/url.h"
 
 typedef struct {
   uint8_t core_zifi;        // the core has the ZiFi API
@@ -13,6 +15,7 @@ typedef struct {
   kg_wifi_ap_t aps[AT_APS]; // the last scan
   uint8_t naps;
   int8_t join_err;
+  zf_info_t zf;             // ZiFi32 firmware
 } net_t;
 
 extern net_t net;
@@ -24,7 +27,12 @@ uint8_t net_status(void) BANKED;              // -> net.st
 uint8_t net_scan(void) BANKED;                // -> net.aps / net.naps
 uint8_t net_join(const char *ssid, const char *pass) BANKED;   // RAM strings; -> net.join_err
 uint8_t net_forget(void) BANKED;
-uint8_t net_open(const char *host, uint16_t port) BANKED;      // RAM string
+uint8_t net_open(const char *host, uint16_t port) BANKED;      // RAM string (AT backends)
 uint8_t net_send(const uint8_t *buf, uint16_t n) BANKED;
+// a gopher request (selector + CR LF) on any backend: AT_OK, AT_CANCEL, AT_ERROR; NET_NOSEL for a
+// selector ZiFi32 cannot send
+#define NET_NOSEL 0x10
+uint8_t net_gopher_open(const gurl_t *u) BANKED;
+uint8_t net_zf_reset(void) BANKED;
 int16_t net_recv(uint8_t *buf, uint16_t max) BANKED;           // as at_tcp_recv
 void net_close(void) BANKED;

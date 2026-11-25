@@ -9,7 +9,10 @@
 #include "netui.h"
 #include "net/net.h"
 
-static char host[64], sel[128], pass[65], ssid[33], line[82];
+static char pass[65], ssid[33], line[82];
+extern gurl_t ui_go;              // browser.c: the address edited here
+#define host ui_go.host
+#define sel  ui_go.sel
 static uint8_t rx[128];
 
 static const char *const bk_title[BK_COUNT] = {
@@ -32,12 +35,16 @@ static void wifi_status_draw(void)
 {
   const at_status_t *s = &net.st;
   txt_print(LX, 2, 20, A_BG, "Модуль");
-  strcpy(line, net.active == BK_USB ? "USB serial, AT " : "ESP8266, AT ");
+  strcpy(line, net.active == BK_USB ? "USB serial, AT " : net.active == BK_ZIFI32 ? "ZiFi32 (ESP32), прошивка " : "ESP8266, AT ");
   strcat(line, s->version[0] ? s->version : "?");
-  txt_print(LX + 20, 2, 50, A_BG, line);
-  txt_print(LX, 3, 20, A_BG, "Управление потоком");
-  txt_print(LX + 20, 3, 50, s->flow == 2 || s->flow == 3 ? A_BG : A_MSG,
-            s->flow < 0 ? "неизвестно" : (s->flow & 2) ? "CTS включён" : "CTS выключен (возможны потери)");
+  if (net.active == BK_ZIFI32 && net.zf.build[0]) { strcat(line, " "); strcat(line, net.zf.build); }
+  txt_print(LX + 20, 2, 58, A_BG, line);
+  txt_print(LX, 3, 20, A_BG, net.active == BK_ZIFI32 ? "Сеть хранится" : "Управление потоком");
+  if (net.active == BK_ZIFI32)
+    txt_print(LX + 20, 3, 50, A_BG, "в " CFG_PATH " (модуль её не помнит)");
+  else
+    txt_print(LX + 20, 3, 50, s->flow == 2 || s->flow == 3 ? A_BG : A_MSG,
+              s->flow < 0 ? "неизвестно" : (s->flow & 2) ? "CTS включён" : "CTS выключен (возможны потери)");
   txt_print(LX, 4, 20, A_BG, "Сеть");
   txt_print(LX + 20, 4, 50, s->ssid[0] ? A_OK : A_MSG, s->ssid[0] ? s->ssid : "не подключено");
   txt_print(LX, 5, 20, A_BG, "IP");
@@ -131,19 +138,23 @@ void wifi_run(void) BANKED
 {
   uint8_t s = 0, n, r;
   uint16_t k;
-  static const char *const items[3] = { "Поиск сетей", "Скрытая сеть", "Забыть сеть" };
+  static const char *const items[4] = { "Поиск сетей", "Скрытая сеть", "Забыть сеть", "Перезапустить ZiFi32" };
   for (;;) {
     ui_frame("karabas gopher \xc4 Wi-Fi", "\x18\x19 пункт   Enter выбрать   Esc назад");
     busy("Опрос модуля...");
     r = net_status();
     busy(r == AT_OK ? "" : "Модуль не отвечает");
     wifi_status_draw();
+    // Forget only when joined; Restart only for ZiFi32 (a module left BUSY by an old firmware)
     n = net.st.ssid[0] ? 3 : 2;
+    if (net.active == BK_ZIFI32) n++;
     if (s >= n) s = 0;
     for (;;) {
       uint8_t i;
-      for (i = 0; i < 3; i++)
-        txt_print(LX, 8 + i * 2, 30, i >= n ? A_BG : i == s ? A_SEL : A_BG, i < n ? items[i] : "");
+      for (i = 0; i < 4; i++) {
+        uint8_t id = i == n - 1 && net.active == BK_ZIFI32 ? 3 : i;
+        txt_print(LX, 8 + i * 2, 30, i >= n ? A_BG : i == s ? A_SEL : A_BG, i < n ? items[id] : "");
+      }
       k = ui_key();
       if (k == K_ESC) return;
       if (k == K_UP) s = s ? s - 1 : n - 1;
@@ -151,7 +162,10 @@ void wifi_run(void) BANKED
       if (k != K_ENTER) continue;
       if (s == 0) wifi_list();
       else if (s == 1) wifi_hidden();
-      else {
+      else if (net.active == BK_ZIFI32 && s == n - 1) {
+        busy("Перезапуск ZiFi32...");
+        if (net_zf_reset() == AT_OK) net_use(BK_ZIFI32);
+      } else {
         strcpy(line, "Забыть сеть ");
         strcat(line, net.st.ssid);
         strcat(line, "? Модуль перестанет к ней подключаться.  Enter \xc4 да, Esc \xc4 нет");
@@ -182,7 +196,8 @@ void nettest_run(void) BANKED
   uint16_t t0;
   uint32_t total = 0;
   ui_frame("karabas gopher \xc4 Проверка сети", "Enter запрос   Esc назад");
-  if (!host[0]) host_from_home();
+  host_from_home();
+  sel[0] = 0;
   txt_print(LX, 2, 10, A_BG, "Сервер");
   txt_print(LX + 40, 2, 10, A_BG, "Селектор");
   txt_print(LX + 10, 2, 28, A_BG, host);
@@ -191,11 +206,14 @@ void nettest_run(void) BANKED
   if (!ui_edit(LX + 50, 2, 26, sel, 120, 2)) return;
   txt_print(LX + 50, 2, 26, A_BG, sel);
   busy("Соединение... (Esc \xc4 прервать)");
-  r = net_open(host, 70);
-  if (r != AT_OK) { busy(r == AT_CANCEL ? "Прервано" : "Нет соединения"); ui_key(); return; }
-  strcpy((char *)rx, sel);
-  strcat((char *)rx, "\r\n");
-  if (net_send(rx, (uint16_t)strlen((char *)rx)) != AT_OK) { busy("Ошибка отправки"); net_close(); ui_key(); return; }
+  ui_go.port = 70;
+  ui_go.type = '1';
+  r = net_gopher_open(&ui_go);
+  if (r != AT_OK) {
+    busy(r == AT_CANCEL ? "Прервано" : r == NET_NOSEL ? "ZiFi32: селектор должен начинаться с /" : "Нет соединения");
+    ui_key();
+    return;
+  }
   busy("Приём...");
   t0 = ticks;
   while ((n = net_recv(rx, sizeof(rx))) >= 0) {
@@ -234,7 +252,7 @@ void netui_run(void) BANKED
     for (b = 1; b < BK_COUNT; b++) {
       txt_print(LX, 2 + b, 26, A_BG, bk_title[b]);
       txt_print(LX + 28, 2 + b, 40, net.found[b] ? A_OK : A_DIM,
-                b == BK_ZIFI32 ? "будет в Ф4" : !net.core_zifi ? "нет ZiFi в ядре" :
+                b != BK_ZIFI32 && !net.core_zifi ? "нет ZiFi в ядре" :
                 net.found[b] ? (net.active == b ? "отвечает, используется" : "отвечает") : "нет ответа");
     }
     for (;;) {
@@ -261,8 +279,8 @@ void netui_run(void) BANKED
         busy(cfg_save() ? "Ошибка записи " CFG_PATH : "Сохранено в " CFG_PATH);
       } else if (k == K_ENTER) {
         if (s == 1) {
-          if (net.active == BK_ZIFI || net.active == BK_USB) wifi_run();
-          else { busy("Нет модуля ESP8266 (ZiFi32 \xc4 в Ф4)"); continue; }
+          if (net.active) wifi_run();
+          else { busy("Нет модуля"); continue; }
         } else if (s == 2) {
           if (net.active) nettest_run();
           else { busy("Нет подключения"); continue; }
