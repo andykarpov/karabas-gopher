@@ -78,3 +78,29 @@ void url_format(const gurl_t *u, char *out, uint16_t max)
   }
   out[k] = 0;
 }
+
+void url_filename(const char *sel, char *out, uint8_t max)
+{
+  const char *b = sel, *e, *p;
+  uint8_t n, x;
+  for (e = sel; *e && *e != '\t'; e++) ;
+  while (e > sel && e[-1] == '/') e--;                 // "dir/" -> "dir"
+  for (p = sel; p < e; p++) if (*p == '/' || *p == '\\') b = p + 1;
+  while (b < e && (*b == ' ' || *b == '.')) b++;
+  while (e > b && (e[-1] == ' ' || e[-1] == '.')) e--;
+  if (b == e) { b = "file"; e = b + 4; }
+  n = (uint8_t)(e - b > 250 ? 250 : e - b);
+  if (n > max - 1) {
+    // keep the extension: "very-long-name.scr" -> "very-lo.scr"
+    for (p = e - 1; p > b && p > e - 6 && *p != '.'; p--) ;
+    x = *p == '.' && p > b ? (uint8_t)(e - p) : 0;
+    memcpy(out, b, max - 1 - x);
+    memcpy(out + max - 1 - x, e - x, x);
+    n = max - 1;
+  } else memcpy(out, b, n);
+  out[n] = 0;
+  for (x = 0; x < n; x++) {
+    uint8_t c = (uint8_t)out[x];
+    if (c < 0x20 || c == 0x7F || strchr("\"*:<>?|", c)) out[x] = '_';
+  }
+}

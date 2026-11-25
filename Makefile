@@ -13,7 +13,7 @@ HOSTCC  ?= gcc
 # sources are UTF-8; they are converted to CP866 (the font of the screen) into build/ first.
 # Memory map in src/bank.h: common code in window 0, banks of 32 KB at #4000-#BFFF.
 COMMON  := main.c text.c names.c ini.c netplat.c
-BANK1   := sd.c config.c bm.c fatfs/ff.c fatfs/ffunicode.c
+BANK1   := sd.c config.c bm.c dl.c fatfs/ff.c fatfs/ffunicode.c
 BANK2   := settings.c ui.c netui.c browser.c kbd.c kbd_hw.c edit.c gopher/url.c gopher/menu.c gopher/cp.c
 BANK3   := net/net.c net/at.c net/esp_at_parse.c net/tr_ts.c net/zifi32.c gopher/gopher.c gopher/doc.c
 SRCS    := $(COMMON) $(BANK1) $(BANK2) $(BANK3)
@@ -68,6 +68,9 @@ test: build/at_host | build
 	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -o build/test_gopher tests/host/test_gopher.c src/gopher/url.c src/gopher/menu.c src/gopher/cp.c src/gopher/doc.c && ./build/test_gopher
 	@for t in $(HOST_TESTS); do $(HOSTCC) -std=c11 -Wall -Wextra -O1 -o build/test_$$t tests/host/test_$$t.c src/$$t.c \
 	  && ./build/test_$$t || exit 1; done
+	rm -f build/dl.img && mkfs.fat -C build/dl.img 2048 >/dev/null
+	iconv -f UTF-8 -t CP866 tests/host/test_dl.c > build/test_dl.866.c
+	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -Isrc -Isrc/fatfs -o build/test_dl build/test_dl.866.c src/dl.c src/fatfs/ff.c src/fatfs/ffunicode.c && ./build/test_dl build/dl.img
 	$(PY) -m unittest discover -s tests -p 'test_*.py'
 
 emu: build/gopher.spg

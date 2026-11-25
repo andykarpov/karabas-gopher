@@ -4,11 +4,17 @@
 #include "../bank.h"
 #include "url.h"
 
-enum { G_OK, G_NONET, G_NOCONN, G_SEND, G_CANCEL, G_TIMEOUT, G_NOSEL, G_NOWIFI };
+enum { G_OK, G_NONET, G_NOCONN, G_SEND, G_CANCEL, G_TIMEOUT, G_NOSEL, G_NOWIFI, G_FILE, G_WRITE };
 
 // u in RAM; wrap 0 = menu rows, else text wrapped at that width; *bytes = received
 uint8_t gopher_fetch(const gurl_t *u, uint8_t wrap) BANKED;
 extern uint32_t gopher_bytes;
+extern uint16_t gopher_t0;            // ticks at the start of the data
+extern uint8_t gopher_saving;         // 1 while gopher_save runs (for browse_progress)
+extern uint8_t gopher_fr;             // the FatFs code of G_FILE / G_WRITE (DL_FULL: the card is full)
+// a download into the file path ("dir/name" in RAM, room = its buffer; the name may get "_N");
+// a text item (type 0) loses its "." line; a failed / cancelled download is deleted
+uint8_t gopher_save(const gurl_t *u, char *path, uint8_t room) BANKED;
 // the browser draws the progress (bank BANK_UI): called about every 2 KB
 void browse_progress(void) BANKED;
 // a line of the document (RAM out, max bytes): for the browser

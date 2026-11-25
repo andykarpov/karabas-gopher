@@ -30,6 +30,17 @@ int main(void)
   url_parse("h", &u); url_format(&u, s, sizeof(s)); CHECK_STR(s, "gopher://h/");
   url_parse("gopher://h/1/x", &u); url_format(&u, s, 14); CHECK_STR(s, "gopher://h/1/");
 
+  // download names
+  url_filename("/pub/zx/game.tap", s, 64); CHECK_STR(s, "game.tap");
+  url_filename("/pub/zx/", s, 64); CHECK_STR(s, "zx");
+  url_filename("", s, 64); CHECK_STR(s, "file");
+  url_filename("/", s, 64); CHECK_STR(s, "file");
+  url_filename("/a/b?c:d*e.scr\tquery", s, 64); CHECK_STR(s, "b_c_d_e.scr");
+  url_filename("x\\win\\name.txt", s, 64); CHECK_STR(s, "name.txt");
+  url_filename("/very-long-file-name.scr", s, 12); CHECK_STR(s, "very-lo.scr");
+  url_filename("/abcdefghijklmnop", s, 8); CHECK_STR(s, "abcdefg");
+  url_filename("/ .hidden. ", s, 64); CHECK_STR(s, "hidden");
+
   // menu lines
   gitem_t it;
   const char *l = "1MODs Archive\t/mod\talexspawn.ru\t70";

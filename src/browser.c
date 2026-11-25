@@ -8,6 +8,7 @@
 #include "netui.h"
 #include "browser.h"
 #include "bm.h"
+#include "dl.h"
 #include "gopher/gopher.h"
 #include "gopher/url.h"
 #include "gopher/menu.h"
@@ -99,7 +100,19 @@ static void bar_view(void)
 void browse_progress(void) BANKED
 {
   uint32_t k = gopher_bytes >> 10;           // whole KB: no 32-bit printf
-  ui_num(disp, "Приём... КБ: ", (int16_t)(k > 30000 ? 30000 : k));
+  uint16_t dt = ticks - gopher_t0;
+  char nb[12];
+  ui_num(disp, gopher_saving ? "Скачивание: " : "Приём: ", (int16_t)(k > 30000 ? 30000 : k));
+  strcat(disp, " КБ");
+  if (gopher_saving && dt >= 25) {
+    // tenths of KB/s: bytes * 50 / dt / 1024 * 10
+    uint16_t v = (uint16_t)(((gopher_bytes >> 8) * 125) / dt);
+    ui_num(nb, "  ", (int16_t)(v / 10));
+    strcat(disp, nb);
+    nb[0] = ','; nb[1] = '0' + v % 10; nb[2] = 0;
+    strcat(disp, nb);
+    strcat(disp, " КБ/с");
+  }
   strcat(disp, "   (Esc \xc4 прервать)");
   bar(disp);
 }
@@ -178,16 +191,16 @@ static void hint(void)
 {
   gitem_t it;
   const char *h = "~BS~ назад";
-  if (cur.mode == M_TEXT) h = "~\x18\x19 PgUp PgDn~ листать  ~BS~ назад";
+  if (cur.mode == M_TEXT) h = "~\x18\x19 PgUp PgDn~ листать  ~F10~ сохранить текст  ~BS~ назад";
   else if (cur.mode == M_BOOK) { if (cur.sel != 0xFFFF) h = "~Enter~ открыть  ~Del~ удалить  ~BS~ назад"; }
   else if (cur.sel != 0xFFFF && row_item(cur.sel, &it))
     switch (it.type) {
       case '1': h = "~Enter~ открыть  ~BS~ назад"; break;
-      case '0': h = "~Enter~ читать  ~BS~ назад"; break;
       case '7': h = "~Enter~ искать  ~BS~ назад"; break;
       case 'h': h = "~Enter~ показать адрес  ~BS~ назад"; break;
       case '8': case 'T': h = "telnet не поддерживается  ~BS~ назад"; break;
-      default: h = "файл: скачивание \xc4 в следующей версии  ~BS~ назад";
+      case '0': h = "~Enter~ читать  ~F10~ скачать  ~BS~ назад"; break;
+      default: h = "~Enter~ / ~F10~ скачать  ~BS~ назад";
     }
   txt_fill(0, HINT_Y, TXT_COLS, ' ', A_HINT);
   ui_hint(1, HINT_Y, TXT_COLS - 2, A_HINT, A_HINTK, h);
@@ -276,13 +289,61 @@ static const char *fetch_error(uint8_t r)
   return "Ошибка";
 }
 
+// ---- downloads (Ф5 step 2): ui_go into cfg.downloads
+
+static char dlpath[150];          // RAM: goes to banks 3 and 1
+
+static uint8_t downloadable(char t)
+{
+  return !strchr("17hi38T+", t);
+}
+
+static void download(void)
+{
+  uint8_t r, n;
+  char nb[12];
+  if (!downloadable(ui_go.type)) { status("Это не файл", A_STAT); return; }
+  strcpy(dlpath, cfg.downloads[0] ? cfg.downloads : "/downloads");
+  n = (uint8_t)strlen(dlpath);
+  if (dlpath[n - 1] != '/') dlpath[n++] = '/';
+  url_filename(ui_go.sel, line, 64);
+  cp_conv(cfg.charset, line, (uint16_t)strlen(line), dlpath + n, 64);
+  for (; dlpath[n]; n++) if (dlpath[n] == '?') dlpath[n] = '_';   // cp_conv marks the unknown by '?'
+  status(dlpath, A_DIM);
+  bar("Скачивание... (Esc \xc4 прервать)");
+  r = gopher_save(&ui_go, dlpath, sizeof(dlpath));
+  bar_view();
+  if (r == G_OK) {
+    strcpy(disp, "Сохранено: ");
+    strncat(disp, dlpath, 50);
+    if (gopher_bytes < 10240) { ui_num(nb, " (", (int16_t)gopher_bytes); strcat(disp, nb); strcat(disp, " байт)"); }
+    else {
+      uint32_t k = gopher_bytes >> 10;
+      ui_num(nb, " (", (int16_t)(k > 30000 ? 30000 : k)); strcat(disp, nb); strcat(disp, " КБ)");
+    }
+    status(disp, A_OK);
+    return;
+  }
+  if (r == G_FILE) {
+    ui_num(disp, "Не удалось создать файл на SD, ошибка FatFs ", gopher_fr);
+    if (gopher_fr == 3 /* FR_NOT_READY */ || gopher_fr == 12 /* FR_NOT_ENABLED */) strcpy(disp, "Нет SD-карты");
+  } else if (r == G_WRITE) {
+    if (gopher_fr == DL_FULL) strcpy(disp, "SD-карта заполнена: файл удалён");
+    else ui_num(disp, "Ошибка записи на SD, файл удалён: FatFs ", gopher_fr);
+  } else if (r == G_CANCEL) strcpy(disp, "Скачивание прервано, файл удалён");
+  else strcpy(disp, fetch_error(r));
+  status(disp, A_STAT);
+  if (r == G_NOWIFI || r == G_NOCONN || r == G_TIMEOUT) ui_poll_soon();
+}
+
 // shows go: 1 if shown (cur replaced, the old one into the history when push)
 static uint8_t open_url(uint8_t push)
 {
   uint8_t r, mode = ui_go.type == '0' ? M_TEXT : M_MENU;
   if (ui_go.type != '0' && ui_go.type != '1' && ui_go.type != '7') {
-    status(ui_go.type == '8' || ui_go.type == 'T' ? "Telnet не поддерживается" :
-           "Скачивание файлов \xc4 в следующей версии", A_STAT);
+    if (ui_go.type == '8' || ui_go.type == 'T') status("Telnet не поддерживается", A_STAT);
+    else if (ui_go.type == 'h') status("Веб-ссылка: браузер её не открывает", A_STAT);
+    else download();                         // pictures / music: Ф5 steps 3..5 show / play them
     return 0;
   }
   if (push && cur.u.host[0]) hist_push();
@@ -311,23 +372,23 @@ static uint8_t open_url(uint8_t push)
   return 1;
 }
 
-static void open_sel(void)
+// the selected link -> ui_go (and link_name); 0 if there is none (or it is a web URL: shown)
+static uint8_t sel_url(void)
 {
   gitem_t it;
   uint8_t i;
-  if (cur.mode == M_TEXT || cur.sel == 0xFFFF || !row_item(cur.sel, &it)) return;
+  if (cur.mode == M_TEXT || cur.sel == 0xFFFF || !row_item(cur.sel, &it)) return 0;
   cp_conv(cur.mode == M_BOOK ? CS_CP866 : cfg.charset, it.disp, it.dlen, link_name, sizeof(link_name) - 1);
   if (cur.mode == M_BOOK) {
     memcpy(line, it.sel, it.slen);
     line[it.slen] = 0;
-    if (url_parse(line, &ui_go)) open_url(1);
-    return;
+    return url_parse(line, &ui_go);
   }
   if (it.type == 'h' && it.slen > 4 && !strncmp(it.sel, "URL:", 4)) {
     memcpy(disp, it.sel + 4, it.slen - 4 > 70 ? 70 : it.slen - 4);
     disp[it.slen - 4 > 70 ? 70 : it.slen - 4] = 0;
     status(disp, A_STAT);
-    return;
+    return 0;
   }
   memset(&ui_go, 0, sizeof(ui_go));
   for (i = 0; i < it.hlen && i < URL_HOST - 1; i++) ui_go.host[i] = it.host[i];
@@ -336,7 +397,14 @@ static void open_sel(void)
   memcpy(ui_go.sel, it.sel, it.slen);
   ui_go.sel[it.slen] = 0;
   if (!ui_go.host[0]) memcpy(ui_go.host, cur.u.host, URL_HOST);
-  if (it.type == '7') {
+  return 1;
+}
+
+static void open_sel(void)
+{
+  if (!sel_url()) return;
+  if (cur.mode == M_BOOK) { open_url(1); return; }
+  if (ui_go.type == '7') {
     query[0] = 0;
     status("Поиск:", A_STAT);
     if (!ui_edit(8, MSG_Y, TXT_COLS - 9, query, sizeof(query) - 1, 2) || !query[0]) { status("", A_BG); return; }
@@ -449,6 +517,10 @@ void browser_run(void) BANKED
         }
         continue;
       case K_F1 + 5: add_bookmark(); continue;
+      case K_F1 + 9:
+        if (cur.mode == M_TEXT) { memcpy(&ui_go, &cur.u, sizeof(gurl_t)); download(); }
+        else if (sel_url()) download();
+        continue;
       case K_DEL:
         if (cur.mode == M_BOOK && cur.sel != 0xFFFF) {
           if (ui_ask(MSG_Y, "Удалить закладку?  Enter \xc4 да, Esc \xc4 нет")) {

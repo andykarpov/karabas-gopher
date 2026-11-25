@@ -16,3 +16,6 @@ typedef struct {
 uint8_t url_parse(const char *s, gurl_t *u);
 // back to text: "gopher://host[:port]/Tsel", '%', TAB, CR, LF and spaces escaped; cut to max - 1
 void url_format(const gurl_t *u, char *out, uint16_t max);
+// a file name for a download from a selector: its last part (before a TAB), characters FAT does not
+// take -> '_', "file" if nothing is left; the extension is kept when cut to max - 1
+void url_filename(const char *sel, char *out, uint8_t max);
