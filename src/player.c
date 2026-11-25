@@ -279,7 +279,7 @@ uint8_t player_play(uint8_t i)
   if (!player_can(fmt)) { player_draw(); return PL_NOENG; }
   pl_loading = 1;
   player_draw();
-  if (fmt != PF_PT3) {                       // a tracker module: the big buffer, then the GS / ZiFi32
+  if (!PF_AY(fmt)) {                         // a tracker module: the big buffer, then the GS / ZiFi32
     r = gopher_load_big(&pu);
     if (r == G_OK && trk_play(fmt - PF_MOD, gopher_bytes)) r = PL_ENGINE;
     pl_loading = 0;
