@@ -10,6 +10,7 @@ __sfr __at(0xB3) GS_DATA;
 #define ST_CMD  0x01              // status bit 0: a command not taken yet
 
 static uint8_t gs_handle;
+static void volume(uint8_t v);
 
 // a command; waits until the GS took it (bit 0 clear), at most 1 s
 static uint8_t cmd(uint8_t c)
@@ -46,12 +47,33 @@ uint8_t gs_play_module(uint32_t len)
     off += k;
   }
   if (cmd(0xD2)) return 1;                 // close: the GS reads the module
+  volume(0x40);
   GS_DATA = gs_handle;
   return cmd(0x31);                        // play
 }
 
-void gs_stop(void) { cmd(0x32); }
-void gs_continue(void) { cmd(0x33); }
+// the module volume (#2A, 0..#40); at 0 the GS mixes silence, so a stop leaves the DAC at its middle
+// and not at the last sample (a step = a click on pause / stop)
+static void volume(uint8_t v)
+{
+  GS_DATA = v;
+  cmd(0x2A);
+}
+
+void gs_stop(void)
+{
+  uint16_t t0;
+  volume(0);
+  t0 = net_ticks();
+  while ((uint16_t)(net_ticks() - t0) < 3) ;   // a few frames of silence first
+  cmd(0x32);
+}
+
+void gs_continue(void)
+{
+  cmd(0x33);
+  volume(0x40);
+}
 
 uint8_t gs_song_pos(void)
 {

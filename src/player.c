@@ -91,6 +91,11 @@ void player_draw(void)
   *p++ = '/';
   ui_num(p, "", pl_count); p += strlen(p);
   *p++ = ' ';
+  if (!pl_loading) {                         // who plays it
+    uint8_t e = pl_trk ? trk_now() : 0;
+    strcpy(p, e == TRK_GS ? "GS " : e == TRK_ZF ? "Z32 " : "AY ");
+    p += strlen(p);
+  }
   *p = 0;
   n = (uint8_t)(p - b);
   strncpy(p, pname, w - n - 6);

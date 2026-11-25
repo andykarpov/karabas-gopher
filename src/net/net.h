@@ -61,3 +61,4 @@ uint8_t trk_play(uint8_t fmt, uint32_t len) BANKED;   // 0 ok
 void trk_pause(uint8_t on) BANKED;
 void trk_stop(void) BANKED;
 uint8_t trk_ended(void) BANKED;                  // GS: the song position went back (looped)
+uint8_t trk_now(void) BANKED;                    // the engine playing: TRK_*

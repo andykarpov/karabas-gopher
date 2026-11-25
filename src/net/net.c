@@ -166,6 +166,7 @@ uint8_t trk_gs;
 static uint8_t trk_kind, trk_last;
 
 void trk_detect(void) BANKED { trk_gs = gs_detect(); }
+uint8_t trk_now(void) BANKED { return trk_kind; }
 
 uint8_t trk_engine(uint8_t fmt) BANKED
 {
