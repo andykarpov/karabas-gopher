@@ -229,7 +229,7 @@ void netui_run(void) BANKED
   static const char *const items[5] = {
     "Подключение", "Wi-Fi...", "Проверка: gopher-запрос...", "Найти модули заново", "Настройки..." };
   for (;;) {
-    ui_frame("karabas gopher \xc4 Сеть", "\x18\x19 пункт   Enter выбрать   \x1b\x1a подключение   F2 сохранить");
+    ui_frame("karabas gopher \xc4 Сеть", "\x18\x19 пункт   Enter выбрать   \x1b\x1a подключение   F2 сохранить   Esc назад");
     txt_print(LX, 2, 30, A_DIM, "Модули");
     for (b = 1; b < BK_COUNT; b++) {
       txt_print(LX, 2 + b, 26, A_BG, bk_title[b]);
@@ -250,6 +250,7 @@ void netui_run(void) BANKED
         }
       }
       k = ui_key();
+      if (k == K_ESC) return;
       if (k == K_UP) s = s ? s - 1 : 4;
       else if (k == K_DOWN) s = s < 4 ? s + 1 : 0;
       else if (s == 0 && (k == K_LEFT || k == K_RIGHT || k == K_ENTER)) {

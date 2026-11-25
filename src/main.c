@@ -5,6 +5,7 @@
 #include "config.h"
 #include "settings.h"
 #include "netui.h"
+#include "browser.h"
 #include "net/net.h"
 #include "fatfs/ff.h"
 
@@ -41,5 +42,5 @@ void main(void)
   txt_puts(m_search);
   net_detect();
   net_auto();
-  netui_run();
+  browser_run();
 }
