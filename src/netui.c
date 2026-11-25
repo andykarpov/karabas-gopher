@@ -95,7 +95,7 @@ static void wifi_list(void)
     ui_frame("karabas gopher \xc4 Wi-Fi: сети", "\x18\x19 сеть   Enter подключиться   R искать снова   Esc назад");
     busy("Поиск сетей...");
     net_scan();
-    busy(net.naps ? "\xfe \xc4 сеть с паролем, зелёным \xc4 текущая" : "Сети не найдены (R \xc4 искать снова)");
+    busy(net.naps ? "\x0b \xc4 сеть с паролем, зелёным \xc4 текущая" : "Сети не найдены (R \xc4 искать снова)");
     for (;;) {
       if (s < top) top = s;
       if (s >= top + LIST_N) top = s - LIST_N + 1;
@@ -104,7 +104,7 @@ static void wifi_list(void)
         txt_fill(0, LIST_Y + i, TXT_COLS, ' ', A_BG);
         if (n >= net.naps) continue;
         a = n == s ? A_SEL : !strcmp(net.aps[n].ssid, net.st.ssid) ? A_OK : A_BG;
-        txt_print(LX, LIST_Y + i, 2, a, net.aps[n].ecn ? "\xfe " : "  ");
+        txt_print(LX, LIST_Y + i, 2, a, net.aps[n].ecn ? "\x0b " : "  ");
         txt_print(LX + 2, LIST_Y + i, 40, a, net.aps[n].ssid);
         ui_num(l, "", net.aps[n].rssi);
         strcat(l, " dBm");
@@ -274,6 +274,7 @@ void netui_run(void) BANKED
       else if (s == 0 && (k == K_LEFT || k == K_RIGHT || k == K_ENTER)) {
         cfg.backend = (uint8_t)((cfg.backend + (k == K_LEFT ? BK_COUNT - 1 : 1)) % BK_COUNT);
         net_auto();
+        ui_poll_soon();
         break;
       } else if (k == K_F1 + 1) {
         busy(cfg_save() ? "Ошибка записи " CFG_PATH : "Сохранено в " CFG_PATH);
