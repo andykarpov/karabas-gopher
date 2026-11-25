@@ -4813,6 +4813,7 @@ FRESULT f_stat (
 /* Get Number of Free Clusters                                           */
 /*-----------------------------------------------------------------------*/
 
+#if FF_KG_GETFREE	/* karabas gopher: not used, left out for space (ffconf.h) */
 FRESULT f_getfree (
 	const TCHAR* path,	/* Logical drive number */
 	DWORD* nclst,		/* Pointer to a variable to return number of free clusters */
@@ -4901,6 +4902,7 @@ FRESULT f_getfree (
 
 	LEAVE_FF(fs, res);
 }
+#endif
 
 
 
@@ -5137,6 +5139,7 @@ FRESULT f_mkdir (
 /* Rename a File/Directory                                               */
 /*-----------------------------------------------------------------------*/
 
+#if FF_KG_RENAME	/* karabas gopher: not used, left out for space (ffconf.h) */
 FRESULT f_rename (
 	const TCHAR* path_old,	/* Pointer to the object name to be renamed */
 	const TCHAR* path_new	/* Pointer to the new name */
@@ -5234,6 +5237,7 @@ FRESULT f_rename (
 
 	LEAVE_FF(fs, res);
 }
+#endif
 
 #endif /* !FF_FS_READONLY */
 #endif /* FF_FS_MINIMIZE == 0 */

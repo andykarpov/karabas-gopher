@@ -8,8 +8,14 @@ Gopher-браузер для TS-Conf (ZX Spectrum): программа `.spg`, �
 
 ![Меню gopher-сервера](docs/img/f5-zifi32.jpg)
 
-Состояние: работает на Karabas Mini G (всё, что ниже, проверено на ней). Другие машины с TS-Conf
-(ZX-Evolution) не проверялись.
+Состояние: версия 1.0 ([CHANGELOG](CHANGELOG.md)), работает на Karabas Mini G (всё, что ниже,
+проверено на ней). Другие машины с TS-Conf (ZX-Evolution) не проверялись.
+
+## Скачать
+
+`karabas_gopher.spg` каждой версии — на странице [Releases](https://github.com/andykarpov/karabas-gopher/releases);
+текущая лежит и в релизном репозитории Karabas:
+[karabas-go/software](https://github.com/andykarpov/karabas-go/tree/master/software).
 
 ## Возможности
 
@@ -40,8 +46,8 @@ Gopher-браузер для TS-Conf (ZX Spectrum): программа `.spg`, �
 
 ## Начало работы
 
-1. Соберите `build/gopher.spg` (ниже) и положите его на SD-карту.
-2. В Wild Commander выберите `gopher.spg` и нажмите Enter.
+1. Положите `karabas_gopher.spg` на SD-карту (или соберите, ниже).
+2. В Wild Commander выберите его и нажмите Enter.
 3. F9 — экран «Сеть»: найденные модули, подключение, Wi-Fi, настройки (домашняя страница,
    кодировка, папка загрузок). F2 там сохраняет `/zifi/gopher.ini`.
 
@@ -59,6 +65,41 @@ Gopher-браузер для TS-Conf (ZX Spectrum): программа `.spg`, �
 | F7, Shift+F7, F8, Shift+F8 | пауза, стоп, следующий, предыдущий трек |
 | Ins | русская / латинская раскладка |
 
+## Файл настроек
+
+`/zifi/gopher.ini` (пишется по F2 на экране «Сеть» или «Настройки»; комментарии и чужие строки
+сохраняются):
+
+```ini
+; комментарий — отдельная строка («;» или «#»): остаток строки — это значение
+[net]
+; auto, zifi32, zifi, usb
+backend=auto
+[zifi32]
+; сеть ZiFi32 (ESP8266 хранит свою, её настраивает boot-ядро)
+ssid=MyNet
+password=...
+autoconnect=1
+[gopher]
+home=gopher://alexspawn.ru/
+; utf8, cp1251, koi8, cp866
+charset=utf8
+downloads=/downloads
+```
+
+## USB serial
+
+Браузер говорит AT через RS232 ядра TS-Conf, а MCU платы отдаёт его на ПК как последовательный порт
+USB. На ПК запустите
+
+```
+python3 tools/at_proxy.py --tty /dev/serial/by-id/usb-Karabas_Go_...-if02
+```
+
+(чистый порт платы: CDC `if02` или USB-UART переходник). Прокси отвечает как ESP8266 с AT-прошивкой и
+сам открывает TCP-соединения; AT+RST, AT+RESTORE, AT+UART_DEF= и AT+SYSSTORE он не принимает.
+Настоящий ESP8266 на USB-UART работает так же.
+
 ## Сборка
 
 Нужны SDCC 4.2 (`sdcc`, `sdasz80`), sjasmplus (плеер PT3), Python 3 с Pillow (тесты), `iconv`, gcc и
@@ -70,6 +111,9 @@ make test     # тесты на ПК (секунды): клавиатура, р�
               # tools/at_proxy.py, скачивание на FatFs (+ fsck.fat), декодеры картинок
 make emu      # запуск в эмуляторе unreal-ng без окна (emu-shot), снимок build/emu.png
 ```
+
+Версия — в файле `VERSION`. Тег `v<версия>` запускает в CI сборку, тесты и публикацию релиза с
+`karabas_gopher.spg` и заметками этой версии из `CHANGELOG.md`.
 
 Устройство, карта памяти и фазы — в [docs/PLAN.md](docs/PLAN.md), состояние работ — в
 [docs/BACKLOG.md](docs/BACKLOG.md).

@@ -8,8 +8,14 @@ background music player and a picture viewer.
 
 ![The menu of a gopher hole](docs/img/f5-zifi32.jpg)
 
-Status: works on the Karabas Mini G (all features below checked there). Other TS-Conf machines
-(ZX-Evolution) are not tested.
+Status: version 1.0 ([CHANGELOG](CHANGELOG.md)), works on the Karabas Mini G (all features below
+checked there). Other TS-Conf machines (ZX-Evolution) are not tested.
+
+## Download
+
+`karabas_gopher.spg` of each version is on the [Releases](https://github.com/andykarpov/karabas-gopher/releases)
+page; the current one is also in the Karabas release repo:
+[karabas-go/software](https://github.com/andykarpov/karabas-go/tree/master/software).
 
 ## Features
 
@@ -39,8 +45,8 @@ Status: works on the Karabas Mini G (all features below checked there). Other TS
 
 ## Getting started
 
-1. Build `build/gopher.spg` (below) and copy it to the SD card.
-2. In Wild Commander select `gopher.spg` and press Enter.
+1. Copy `karabas_gopher.spg` to the SD card (or build it, below).
+2. In Wild Commander select it and press Enter.
 3. F9 opens the network screen: the modules found, the connection, Wi-Fi, settings (home page,
    charset, downloads folder). F2 there saves `/zifi/gopher.ini`.
 
@@ -58,6 +64,40 @@ Status: works on the Karabas Mini G (all features below checked there). Other TS
 | F7, Shift+F7, F8, Shift+F8 | pause, stop, next, previous track |
 | Ins | Russian / Latin keyboard |
 
+## Settings file
+
+`/zifi/gopher.ini` (made by F2 in the network or settings screen; comments and unknown lines are kept):
+
+```ini
+; a comment is a line of its own (";" or "#"): the rest of a line is the value
+[net]
+; auto, zifi32, zifi, usb
+backend=auto
+[zifi32]
+; the network of ZiFi32 (the ESP8266 keeps its own, set by the boot core)
+ssid=MyNet
+password=...
+autoconnect=1
+[gopher]
+home=gopher://alexspawn.ru/
+; utf8, cp1251, koi8, cp866
+charset=utf8
+downloads=/downloads
+```
+
+## USB serial
+
+The browser speaks AT over the RS232 of the TS-Conf core, which the board MCU passes to the PC as a
+USB serial port. On the PC run
+
+```
+python3 tools/at_proxy.py --tty /dev/serial/by-id/usb-Karabas_Go_...-if02
+```
+
+(the clean port of the board: CDC `if02`, or a USB-UART adapter). The proxy answers like an
+ESP8266 with the AT firmware and makes the TCP connections itself; it never accepts AT+RST,
+AT+RESTORE, AT+UART_DEF= or AT+SYSSTORE. A real ESP8266 on a USB-UART adapter works the same way.
+
 ## Building
 
 Needs SDCC 4.2 (`sdcc`, `sdasz80`), sjasmplus (for the PT3 player), Python 3 with Pillow (tests),
@@ -69,6 +109,9 @@ make test     # host tests (seconds): keyboard, editor, INI, gopher parsing, AT 
               # tools/at_proxy.py, downloads on FatFs (+ fsck.fat), the picture decoders
 make emu      # a headless run in the unreal-ng emulator (emu-shot), screenshot build/emu.png
 ```
+
+The version is in `VERSION`. A tag `v<version>` makes the CI build, test and publish a release with
+`karabas_gopher.spg` and the notes of that version from `CHANGELOG.md`.
 
 The design, the memory map and the phases are in [docs/PLAN.md](docs/PLAN.md) (in Russian), the
 state of the work in [docs/BACKLOG.md](docs/BACKLOG.md).

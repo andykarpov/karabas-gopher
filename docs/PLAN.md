@@ -139,6 +139,7 @@ Petit FatFs из SDK (R0.03) не создаёт файлы и не меняет
 - **Ф4. `drv_zifi32`.** Детект версии, стрим gopher, Wi-Fi по SPI + INI + автоподключение, таймауты / сброс (раздел 4).
 - **Ф5. Файлы и медиа.** Загрузка в `/downloads` (Save as, прогресс, BREAK), плеер (PT3 / MOD / XM) в фоне со списком воспроизведения, просмотр картинок со слайдшоу, строка состояния. Подробно — раздел 8.
 - **Ф6. Время и релиз.** Синхронизация времени (ESP8266 `AT+CIPSNTPTIME?` / ZiFi32 — что есть), README (ru / en), `software/` в karabas-go, howto.
+  Сделано 2026-11-25 (ветка f6-release): время файлов FatFs — из часов Gluk ядра (`get_fattime` в sd.c; часы ведёт MCU, boot-ядро ставит их по NTP — своя синхронизация по сети не нужна); `f_getfree` / `f_rename` FatFs выключены флагами в ffconf.h (место в банке 1); версия в файле `VERSION` (1.0) → заголовки экранов, стартовая строка, описание SPG; `CHANGELOG.md`; CI `.github/workflows/build.yml`: сборка + тесты на push / PR, тег `v*` → GitHub release с `karabas_gopher.spg` и заметками версии; README / README.ru: скачивание, `gopher.ini`, USB serial, версии; `software/karabas_gopher.spg` + howto в karabas-go (#56, обновляется на версию 1.0).
 
 ## 7. Решения пользователя (2026-11-25)
 

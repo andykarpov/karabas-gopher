@@ -13,3 +13,9 @@
 #define BANK_UI   2      // screens
 #define BANK_NET  3      // network: transports, AT driver
 #define BANK_PIC  4      // picture decoders
+
+// the name with the version (VERSION file, Makefile)
+#ifndef APP_VERSION
+#define APP_VERSION "dev"
+#endif
+#define APP_NAME "karabas gopher " APP_VERSION
