@@ -73,6 +73,9 @@ uint8_t player_format(const char *sel, uint8_t slen)
   const char *t = sel + slen;
   if (slen < 4) return PF_NONE;
   if (t[-4] == '.' && ext(t - 3, "pt3")) return PF_PT3;
+  if (t[-4] == '.' && ext(t - 3, "pt2")) return PF_PT2;
+  if (t[-4] == '.' && ext(t - 3, "stc")) return PF_STC;
+  if (t[-4] == '.' && ext(t - 3, "asc")) return PF_ASC;
   if (t[-4] == '.' && ext(t - 3, "mod")) return PF_MOD;
   if (t[-4] == '.' && ext(t - 3, "s3m")) return PF_S3M;
   if (t[-3] == '.' && ext(t - 2, "xm")) return PF_XM;
@@ -81,7 +84,7 @@ uint8_t player_format(const char *sel, uint8_t slen)
 
 uint8_t player_can(uint8_t fmt)
 {
-  if (fmt == PF_PT3) return 1;
+  if (PF_AY(fmt)) return 1;
   if (fmt == PF_NONE) return 0;
   return trk_engine(fmt - PF_MOD) != TRK_NONE;
 }
@@ -136,10 +139,12 @@ void player_draw(void)
   }
 }
 
+static uint8_t blob_now = 0xFF;         // the player blob in PG_MUSIC (0xFF: none yet)
+
 static void silence(void)
 {
   pt3_on = 0;
-  pt3_cmd(6);
+  if (blob_now != 0xFF) pt3_cmd(6);
   if (pl_trk) { trk_stop(); pl_trk = 0; }
 }
 
@@ -175,6 +180,68 @@ static void mod_read(uint16_t off, uint8_t *out, uint8_t n)
     *out++ = WIN3[a & 0x3FFF];
     a++;
   }
+}
+
+// the player blob n of PG_PLAYERS into PG_MUSIC at #4000 (the interrupt does not play meanwhile)
+static void blob_load(uint8_t n)
+{
+  uint8_t b[64];
+  uint16_t off, len, i;
+  if (blob_now == n) return;
+  PAGE3(PG_PLAYERS);
+  off = *(uint16_t *)(WIN3 + 4 * n);
+  len = *(uint16_t *)(WIN3 + 4 * n + 2);
+  for (i = 0; i < len; i += sizeof(b)) {
+    PAGE3(PG_PLAYERS);
+    memcpy(b, WIN3 + off + i, sizeof(b));
+    PAGE3(PG_MUSIC);
+    memcpy(WIN3 + i, b, sizeof(b));
+  }
+  blob_now = n;
+}
+
+// a PT2 module: delay, positions, loop position, 32 sample / 16 ornament pointers, the patterns
+// pointer (+99), the name, the position list from +131 ending with #FF (the player needs that)
+static uint8_t is_pt2(uint16_t len)
+{
+  uint8_t h[3], e;
+  uint16_t pat;
+  if (len < 132 + 1) return 0;
+  mod_read(0, h, 3);
+  mod_read(99, (uint8_t *)&pat, 2);
+  if (!h[0] || !h[1] || h[2] >= h[1] || pat >= len || 131 + h[1] >= len) return 0;
+  mod_read(131 + h[1], &e, 1);
+  return e == 0xFF;
+}
+
+static uint8_t is_pt3(uint16_t off);
+
+static uint16_t mod_word(uint16_t off)
+{
+  uint16_t w;
+  mod_read(off, (uint8_t *)&w, 2);
+  return w;
+}
+
+// STC: the positions / ornaments / patterns offsets inside the module, a delay
+// ASC: the patterns / samples / ornaments offsets inside it (ASC1: after the loop byte, ASC0: none)
+static uint8_t is_module(uint8_t fmt, uint16_t len)
+{
+  uint8_t d, h = 0;
+  if (fmt == PF_PT3) return is_pt3(0);
+  if (fmt == PF_PT2) return is_pt2(len);
+  if (len < 32) return 0;
+  mod_read(0, &d, 1);
+  if (fmt == PF_STC)
+    return d && mod_word(1) < len && mod_word(3) < len && mod_word(5) < len;
+  {
+    uint8_t n;
+    int16_t x;
+    mod_read(8, &n, 1);
+    x = (int16_t)mod_word(2) - n;
+    h = x >= 9 && x <= 72;
+  }
+  return mod_word(1 + h) < len && mod_word(3 + h) < len && mod_word(5 + h) < len;
 }
 
 // "ProTracker 3." / "Vortex Tracker II" at the start of a PT3 module
@@ -226,9 +293,11 @@ uint8_t player_play(uint8_t i)
   }
   r = gopher_load(&pu);
   pl_loading = 0;
-  if (r == G_OK && !is_pt3(0)) r = PL_NOTPT3;
+  if (r == G_OK && !is_module(fmt, (uint16_t)gopher_bytes)) r = PL_NOTPT3;
   if (r != G_OK) { player_draw(); return r; }
-  find_ts((uint16_t)gopher_bytes);
+  pt3_mod2 = 0;
+  if (fmt == PF_PT3) find_ts((uint16_t)gopher_bytes);
+  blob_load(fmt - PF_PT3);
   pt3_end = 0;
   pt3_cmd(0);
   pl_played = 0;

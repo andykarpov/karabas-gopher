@@ -434,7 +434,7 @@ static uint8_t sel_url(void)
 static const char *play_error(uint8_t r)
 {
   if (r == G_BIG) return "Модуль слишком большой: только скачать (F10)";
-  if (r == PL_NOTPT3) return "Это не PT3-модуль";
+  if (r == PL_NOTPT3) return "Это не модуль этого формата";
   if (r == PL_NOENG) return "Этот формат здесь не играет: только скачать (F10)";
   if (r == PL_ENGINE) return "GS / ZiFi32 не принял модуль";
   return fetch_error(r);
