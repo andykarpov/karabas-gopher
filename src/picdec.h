@@ -36,4 +36,10 @@ extern frame_t fr;
 void frame_begin(uint8_t buf, uint16_t w, uint16_t h, uint8_t fill);
 void frame_row(uint16_t oy, const uint8_t *row);      // fr.ow bytes to output row oy (< fr.oh)
 
+// true colour into 256 colours: a cube of 6 x 7 x 6 levels (index (r * 7 + g) * 6 + b, the last 4
+// entries black), t = the dither threshold 0..255 of the pixel (an ordered dither)
+uint8_t pic_cube(uint8_t r, uint8_t g, uint8_t b, uint8_t t);
+void pic_cube_pal(uint8_t buf);
+
 uint8_t do_gif(uint32_t len, uint8_t buf);
+uint8_t do_png(uint32_t len, uint8_t buf);

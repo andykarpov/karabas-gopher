@@ -21,6 +21,7 @@ uint8_t pic_format(const char *sel, uint8_t slen) BANKED
   if (lower(t[0]) == 'i' && lower(t[1]) == 'm' && lower(t[2]) == 'g') return PICF_IMG;
   if (lower(t[0]) == 'b' && lower(t[1]) == 'm' && lower(t[2]) == 'p') return PICF_BMP;
   if (lower(t[0]) == 'g' && lower(t[1]) == 'i' && lower(t[2]) == 'f') return PICF_GIF;
+  if (lower(t[0]) == 'p' && lower(t[1]) == 'n' && lower(t[2]) == 'g') return PICF_PNG;
   return PICF_NONE;
 }
 
@@ -222,6 +223,23 @@ void frame_begin(uint8_t buf, uint16_t w, uint16_t h, uint8_t fill)
   ncol[buf] = 256;
 }
 
+uint8_t pic_cube(uint8_t r, uint8_t g, uint8_t b, uint8_t t)
+{
+  uint8_t q = (uint8_t)(((uint16_t)r * 5 + t) >> 8);
+  q = q * 7 + (uint8_t)(((uint16_t)g * 6 + t) >> 8);
+  return q * 6 + (uint8_t)(((uint16_t)b * 5 + t) >> 8);
+}
+
+void pic_cube_pal(uint8_t buf)
+{
+  uint8_t r, g, b, i = 0;
+  for (r = 0; r < 6; r++)
+    for (g = 0; g < 7; g++)
+      for (b = 0; b < 6; b++)
+        pal_set(buf, i++, pal_rgb(r * 51, g * 255 / 6, b * 51));
+  for (; i; i++) pal_set(buf, i, 0);       // 252..255
+}
+
 void frame_row(uint16_t oy, const uint8_t *row)
 {
   uint16_t y = fr.y0 + oy;
@@ -238,6 +256,7 @@ uint8_t pic_decode(uint8_t fmt, uint32_t len, uint8_t buf) BANKED
     case PICF_IMG: return do_img(len, pg, buf);
     case PICF_BMP: return do_bmp(len, pg, buf);
     case PICF_GIF: return do_gif(len, buf);
+    case PICF_PNG: return do_png(len, buf);
   }
   return PICE_BMP;
 }

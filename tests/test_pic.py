@@ -164,6 +164,73 @@ class TestPic(unittest.TestCase):
     def test_gif_scaled(self): self.gif(800, 600, 64, True)
     def test_gif_wide(self): self.gif(1000, 300, 2, False)
 
+    def png(self, mode, w, h, **save):
+        """A PNG made by Pillow; the expected screen from Pillow's decoding of it: palette indices,
+        greys, or the 6 x 7 x 6 colour cube with the 4 x 4 ordered dither of pic.c."""
+        from PIL import Image
+        import io
+        rnd = random.Random(w * 3 + h + len(mode))
+        if mode == 'P':
+            ncol = save.pop('ncol')
+            im = Image.new('P', (w, h))
+            im.putpalette([rnd.randrange(256) for _ in range(3 * ncol)])
+            im.putdata([((x // 9 + y // 5) % ncol) if rnd.random() < 0.7 else rnd.randrange(ncol)
+                        for y in range(h) for x in range(w)])
+        else:
+            base = Image.new('RGB', (w, h))
+            base.putdata([((x * 255) // w, (y * 255) // h, rnd.randrange(256) if rnd.random() < 0.2 else 128)
+                          for y in range(h) for x in range(w)])
+            im = base.convert(mode) if mode not in ('I;16',) else base.convert('L').point(lambda v: v * 257, 'I').convert('I;16')
+        buf = io.BytesIO()
+        im.save(buf, 'PNG', **save)
+        data = buf.getvalue()
+        ref = Image.open(io.BytesIO(data))
+        ref.load()
+        f = 1
+        while -(-w // f) > 360 or -(-h // f) > 288: f += 1
+        ow, oh = -(-w // f), -(-h // f)
+        sw, sh = next((sw, sh) for sw, sh in RES if ow <= sw and oh <= sh)
+        x0, y0 = (sw - ow) // 2, (sh - oh) // 2
+        def c8(r, g, b): return cw((r * 3 + 16) >> 5, (g * 3 + 16) >> 5, (b * 3 + 16) >> 5)
+        bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+        fill = 0
+        if mode == 'P':
+            pl = ref.getpalette()
+            np_ = len(pl) // 3
+            cram = [c8(*pl[3 * i:3 * i + 3]) if i < np_ else 0 for i in range(256)]
+            fill = 255 if np_ < 256 else 0
+            px = lambda x, y: cram[ref.getpixel((x, y))]
+        elif mode in ('L', 'LA', '1', 'I;16'):
+            def px(x, y):
+                v = ref.getpixel((x, y))
+                v = v[0] if isinstance(v, tuple) else v
+                v = 255 if (mode == '1' and v) else v >> 8 if mode == 'I;16' else v
+                return c8(v, v, v)
+        else:
+            cube = [c8(r * 51, g * 255 // 6, b * 51) for r in range(6) for g in range(7) for b in range(6)]
+            rgb = ref.convert('RGB')
+            def px(x, y, ox=0, oy=0):
+                r, g, b = rgb.getpixel((x, y))
+                t = bayer[(oy & 3) * 4 + (ox & 3)] * 16 + 8
+                return cube[((r * 5 + t) >> 8) * 42 + ((g * 6 + t) >> 8) * 6 + ((b * 5 + t) >> 8)]
+        want = [[0] * sw for _ in range(sh)]
+        fc = 0 if mode != 'P' else cram[fill]
+        want = [[fc] * sw for _ in range(sh)]
+        for oy in range(oh):
+            for ox in range(ow):
+                want[y0 + oy][x0 + ox] = px(ox * f, oy * f, ox, oy) if mode in ('RGB', 'RGBA') else px(ox * f, oy * f)
+        self.check(self.run_pic(data, 6), want)
+
+    def test_png_pal(self): self.png('P', 200, 100, ncol=200)
+    def test_png_pal4(self): self.png('P', 101, 77, ncol=16, bits=4)
+    def test_png_grey(self): self.png('L', 300, 200)
+    def test_png_grey_alpha(self): self.png('LA', 120, 90)
+    def test_png_grey16(self): self.png('I;16', 64, 48)
+    def test_png_bits1(self): self.png('1', 333, 111)
+    def test_png_rgb(self): self.png('RGB', 320, 240)
+    def test_png_rgba_scaled(self): self.png('RGBA', 700, 500)
+    def test_png_stored(self): self.png('RGB', 90, 60, compress_level=0)
+
 
 if __name__ == '__main__':
     unittest.main()

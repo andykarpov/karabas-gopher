@@ -17,7 +17,7 @@ SJASM   ?= /opt/sjasmplus/sjasmplus
 COMMON  := main.c text.c names.c ini.c netplat.c
 BANK1   := sd.c config.c bm.c dl.c fatfs/ff.c fatfs/ffunicode.c
 BANK2   := settings.c ui.c netui.c browser.c player.c viewer.c kbd.c kbd_hw.c edit.c gopher/url.c gopher/menu.c gopher/cp.c
-BANK4   := pic.c gif.c
+BANK4   := pic.c gif.c png.c
 BANK3   := net/net.c net/gs.c net/at.c net/esp_at_parse.c net/tr_ts.c net/zifi32.c gopher/gopher.c gopher/doc.c
 SRCS    := $(COMMON) $(BANK1) $(BANK2) $(BANK3) $(BANK4)
 OBJS    := $(addprefix build/,$(SRCS:.c=.rel))
@@ -98,7 +98,7 @@ test: build/at_host | build
 	iconv -f UTF-8 -t CP866 tests/host/test_dl.c > build/test_dl.866.c
 	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -Isrc -Isrc/fatfs -o build/test_dl build/test_dl.866.c src/dl.c src/fatfs/ff.c src/fatfs/ffunicode.c && ./build/test_dl build/dl.img
 	fsck.fat -n build/dl.img
-	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -DHOST -Itests/host/shim -Isrc -o build/pic_host tests/host/pic_host.c src/pic.c src/gif.c
+	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -DHOST -Itests/host/shim -Isrc -o build/pic_host tests/host/pic_host.c src/pic.c src/gif.c src/png.c
 	for p in stc asc; do $(HOSTCC) -std=c11 -Wall -Wextra -O1 -DHOST -o build/ay_$$p tests/host/ay_dump.c src/player/$$p.c || exit 1; done
 	$(PY) -m unittest discover -s tests -p 'test_*.py'
 
@@ -108,5 +108,20 @@ emu: build/gopher.spg
 clean:
 	rm -rf build
 
-.PHONY: all font font-psf test emu clean
+.PHONY: all font font-psf test emu bench clean
 .SECONDARY:
+
+# the speed of a picture decoder on the Z80 (tests/emu/picbench.c): make bench BENCH=FILE FMT=n
+BENCH_LEN = $(shell stat -c %s $(BENCH))
+bench: build/crt0.rel build/text.rel $(addprefix build/,$(BANK4:.c=.rel)) tests/emu/picbench.c | build
+	@test -n "$(BENCH)" || { echo "make bench BENCH=FILE FMT=n"; exit 2; }
+	iconv -f UTF-8 -t CP866 tests/emu/picbench.c > build/picbench.866.c
+	$(SDCC) $(CFLAGS) -DBENCH_FMT=$(FMT) -DBENCH_LEN=$(BENCH_LEN)UL -c build/picbench.866.c -o build/picbench.rel
+	$(SDCC) -mz80 --no-std-crt0 --code-loc 0x0100 --data-loc 0x2000 -Wl-b_BANK4=0x44000 build/crt0.rel build/picbench.rel build/text.rel $(addprefix build/,$(BANK4:.c=.rel)) -o build/bench.ihx
+	rm -rf build/benchpages && $(PY) tools/ihxsplit.py build/bench.ihx build/bench.map build/benchpages
+	rm -rf build/benchfile && mkdir -p build/benchfile && split -b 16384 -d -a 3 $(BENCH) build/benchfile/p
+	$(PY) tools/mkspg.py build/bench.spg --page 0x20 --desc bench \
+	  $$(for f in build/benchpages/page*.bin; do p=$${f##*/page}; echo --block 0x$${p%.bin}:$$f; done) \
+	  --block 0x25:res/font866.bin \
+	  $$(i=128; for f in build/benchfile/p*; do printf -- '--block 0x%x:%s ' $$i $$f; i=$$((i+1)); done)
+	emu-shot unreal --machine TSL --sd $(HOME)/.local/share/emu-shot/tsconf-sd.img --file build/bench.spg wait:$(or $(WAIT),20) shot:build/bench.png
