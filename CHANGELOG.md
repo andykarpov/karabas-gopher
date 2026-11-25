@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Music: PT2 (S.V.Bulba universal player), STC (Sound Tracker) and ASC (ASC Sound Master) on the AY,
+  with our own STC / ASC players (frame by frame equal to AYFly); the menu cursor follows the track
+  that plays.
+
 ## 1.0 (2026-11-25)
 
 The first release, checked on a Karabas Mini G (TS-Conf core).
