@@ -6,6 +6,16 @@
 
 net_t net;
 net_link_t net_lk;
+// ZiFi32: 1 = the network of gopher.ini was joined by us since the module started. At its start the
+// module joins the network kept in its own NVS (console "wf ap"), which SPI cannot read back: the
+// network shown is ours only after we joined it, else it is "the module's own".
+static uint8_t zf_ours;
+static const char zf_own_net[] = "сеть модуля";
+
+static void zf_join_cfg(void)
+{
+  zf_ours = cfg.ssid[0] && zf_join(cfg.ssid, cfg.pass) == ZF_OK;
+}
 
 void net_detect(void) BANKED
 {
@@ -26,8 +36,8 @@ uint8_t net_use(uint8_t backend) BANKED
   if (backend == BK_ZIFI) at_begin(&tr_zifi);
   else if (backend == BK_USB) at_begin(&tr_rs232);
   else if (backend == BK_ZIFI32) {
-    // the network of gopher.ini (the module keeps none of its own over SPI)
-    if (cfg.autoconn && cfg.ssid[0] && zf_netstate() != 2) zf_join(cfg.ssid, cfg.pass);
+    // the network of gopher.ini, once: even if the module is up (it may be on its own NVS network)
+    if (cfg.autoconn && cfg.ssid[0] && !zf_ours) zf_join_cfg();
   } else return 0;
   net.active = backend;
   return 1;
@@ -63,7 +73,7 @@ uint8_t net_status(void) BANKED
     }
   }
   if (zf_netstate() == 2) {
-    strcpy(net.st.ssid, cfg.ssid[0] ? cfg.ssid : "?");
+    strcpy(net.st.ssid, zf_ours ? cfg.ssid : zf_own_net);
     zf_own_ip(net.st.ip);
   }
   return AT_OK;
@@ -81,6 +91,7 @@ uint8_t net_join(const char *ssid, const char *pass) BANKED
   if (net.active != BK_ZIFI32) return at_join(ssid, pass, &net.join_err);
   net.join_err = -1;
   r = zf_join(ssid, pass);
+  zf_ours = r == ZF_OK;
   if (r == ZF_OK) {
     // kept in gopher.ini: the module forgets it on a restart
     strcpy(cfg.ssid, ssid);
@@ -95,10 +106,11 @@ uint8_t net_forget(void) BANKED
   if (net.active != BK_ZIFI32) return at_forget();
   cfg.ssid[0] = cfg.pass[0] = 0;
   cfg_save();
+  zf_ours = 0;
   return zf_err(zf_leave());
 }
 
-uint8_t net_zf_reset(void) BANKED { return zf_err(zf_reset()); }
+uint8_t net_zf_reset(void) BANKED { zf_ours = 0; return zf_err(zf_reset()); }
 uint8_t net_zf_status(void) BANKED { return zf_last_status(); }
 
 uint8_t net_open(const char *host, uint16_t port) BANKED { return at_tcp_open(host, port); }
@@ -131,7 +143,7 @@ void net_close(void) BANKED
 {
   if (net.active == BK_ZIFI32) {
     // a reset module has lost the network: joined again from gopher.ini
-    if (zf_gopher_close() && cfg.ssid[0]) zf_join(cfg.ssid, cfg.pass);
+    if (zf_gopher_close()) zf_join_cfg();
   } else at_tcp_close();
 }
 
@@ -142,7 +154,7 @@ void net_link(void) BANKED
   net_lk.ecn = 0xFF;
   if (net.active == BK_ZIFI32) {
     uint8_t s = zf_netstate();
-    strcpy(net_lk.ssid, cfg.ssid);
+    strcpy(net_lk.ssid, s == 2 && !zf_ours ? zf_own_net : cfg.ssid);
     net_lk.state = s == 2 ? LK_UP : s == 1 ? LK_JOINING : LK_DOWN;
   } else if (net.active == BK_ZIFI || net.active == BK_USB) {
     if (at_link(net_lk.ssid, &net_lk.rssi) != AT_OK) net_lk.ssid[0] = 0;

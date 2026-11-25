@@ -471,12 +471,17 @@ static void follow(void)
 static void play_menu(void)
 {
   gitem_t it;
-  uint16_t i, rows = gopher_rows();
-  uint8_t at = 0, r, k;
+  uint16_t i, rows = gopher_rows(), skip = 0;
+  uint8_t at = 0xFF, r, k;
   player_stop();
   player_clear();
+  // the list holds PL_MAX tracks: from the selected one if it is further
+  for (i = 0; i < cur.sel && i < rows; i++)
+    if (row_item(i, &it) && menu_link(it.type) && player_format(it.sel, it.slen)) skip++;
+  if (skip < PL_MAX) skip = 0;
   for (i = 0; i < rows; i++) {
     if (!row_item(i, &it) || !menu_link(it.type) || !player_format(it.sel, it.slen)) continue;
+    if (skip) { skip--; continue; }
     memset(&ui_go, 0, sizeof(ui_go));
     for (k = 0; k < it.hlen && k < URL_HOST - 1; k++) ui_go.host[k] = it.host[k];
     if (!ui_go.host[0]) memcpy(ui_go.host, cur.u.host, URL_HOST);
@@ -487,6 +492,10 @@ static void play_menu(void)
     cp_conv(cfg.charset, it.disp, it.dlen, name, sizeof(name) - 1);
     if (i == cur.sel) at = pl_count;
     if (!player_add(&ui_go, name, i)) break;
+  }
+  if (at >= pl_count) {                      // the selected one did not go in (its address)
+    status("Этот трек не играть: слишком длинный адрес (F10 \xc4 скачать)", A_STAT);
+    return;
   }
   pl_src = url_hash(&cur.u);
   bar_view();                                // the status row in the player layout

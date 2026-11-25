@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- ZiFi32: the network of `gopher.ini` is joined at the start even if the module is already up (it
+  joins the network saved in its NVS by its console first, e.g. a phone); the header no longer shows
+  the name from `gopher.ini` for a network the browser did not join ("сеть модуля").
 - Music: PT2 (S.V.Bulba universal player), STC (Sound Tracker) and ASC (ASC Sound Master) on the AY,
   with our own STC / ASC players (frame by frame equal to AYFly); the menu cursor follows the track
   that plays.

@@ -15,13 +15,19 @@ def main():
             a = b[1] << 8 | b[2]
             for i, v in enumerate(b[4:4 + b[0]]):
                 mem[a + i] = v
-    lo, hi = min(mem), max(mem) + 1
-    if lo != 0x4000:
-        sys.exit('%s: code starts at %04X, not 4000' % (ihx, lo))
+    if not mem:
+        sys.exit('%s: no code in it' % ihx)
     m = open(mapf).read()
-    s = re.search(r'0000([0-9A-F]{4})\s+s__DATA', m)
-    l = re.search(r'0000([0-9A-F]{4})\s+l__DATA', m)
-    ds, dl = int(s.group(1), 16), int(l.group(1), 16)
+    sym = {}
+    for name in ('s__CODE', 'l__CODE', 's__DATA', 'l__DATA'):
+        x = re.search(r'0000([0-9A-F]{4})\s+%s\b' % name, m)
+        if not x:
+            sys.exit('%s: no %s in the map' % (mapf, name))
+        sym[name] = int(x.group(1), 16)
+    lo, hi = sym['s__CODE'], sym['s__CODE'] + sym['l__CODE']   # the code area, from the map
+    if lo != 0x4000 or min(mem) < lo or max(mem) >= hi:
+        sys.exit('%s: code %04X-%04X, bytes at %04X-%04X: not a blob at #4000' % (ihx, lo, hi - 1, min(mem), max(mem)))
+    ds, dl = sym['s__DATA'], sym['l__DATA']
     if ds < hi or ds + dl > 0x5200:
         sys.exit('%s: code %04X-%04X, data %04X-%04X: overlap or past #5200' % (ihx, lo, hi, ds, ds + dl))
     open(out, 'wb').write(bytes(mem.get(a, 0) for a in range(lo, hi)))

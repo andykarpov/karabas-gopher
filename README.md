@@ -26,7 +26,9 @@ page; the current one is also in the Karabas release repo:
   - USB serial: the RS232 of the core through the board MCU (USB CDC) to a PC running
     `tools/at_proxy.py`, or to a real ESP8266 on a USB-UART adapter.
 - **Wi-Fi**: network scan, join (hidden networks too), forget, status; the network of ZiFi32 is kept
-  in `/zifi/gopher.ini`. An existing `/zifi/ZIFI.INI` of the old ZiFi client is offered as a start.
+  in `/zifi/gopher.ini` and joined when the browser starts (ZiFi32 itself joins the network saved in
+  it by its console first; the header shows "сеть модуля" until the browser has joined its own). An
+  existing `/zifi/ZIFI.INI` of the old ZiFi client is offered as a start.
 - **Browsing**: menus, text pages (wrapped at 80 columns), search (type 7), history, bookmarks
   (`/zifi/bookmarks.txt`), any address (F2), home page; UTF-8 / CP1251 / KOI8-R / CP866 pages.
 - **Screen**: 80 x 30 text in the font of Wild Commander; the header shows the Wi-Fi network,
