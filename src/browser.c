@@ -214,7 +214,7 @@ static void hint(void)
       case '0': h = "~Enter~ читать  ~F10~ скачать  ~BS~ назад"; break;
       default: {
         uint8_t f = player_format(it.sel, it.slen);
-        if (pic_format(it.sel, it.slen)) { h = "~Enter~ смотреть (~S~ слайдшоу)  ~F10~ скачать  ~BS~ назад"; break; }
+        if (pic_format(it.sel, it.slen)) { h = "~Enter~ смотреть, там ~S~ слайды  ~F10~ скачать"; break; }
         h = !f ? "~Enter~ / ~F10~ скачать  ~BS~ назад" :
             player_can(f) ? "~Enter~ играть  ~F10~ скачать  ~BS~ назад" :
             f == PF_MOD ? "~F10~ скачать (играть: GS или ZiFi32)" : "~F10~ скачать (играть: ZiFi32 0.6.4+)";
