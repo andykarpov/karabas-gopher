@@ -1,29 +1,33 @@
-// Ф0: the start-up check. Text mode, a line in Russian (CP866), the frame counter runs.
+// karabas gopher: start-up. Ф1: text mode, keyboard, SD + FatFs, settings in /zifi/gopher.ini.
 #include "ts.h"
 #include "text.h"
+#include "kbd.h"
+#include "config.h"
+#include "settings.h"
+#include "fatfs/ff.h"
 
-static void put_u16(uint16_t v)
-{
-  char b[6];
-  uint8_t i = 5;
-  b[5] = 0;
-  do { b[--i] = '0' + v % 10; v /= 10; } while (v && i);
-  txt_puts(b + i);
-}
+// the messages live in the common code: settings_msg() runs in another bank (bank.h)
+static const char m_nosd[] = "Нет SD-карты: настройки не сохранятся";
+static const char m_nofile[] = "Файла " CFG_PATH " нет: настройки по умолчанию, F2 создаст его";
+static const char m_err[] = "Ошибка чтения " CFG_PATH;
+static const char m_ok[] = "Настройки прочитаны из " CFG_PATH;
 
 void main(void)
 {
+  uint8_t r;
   txt_init();
-  txt_attr(ATTR(COL_BYELLOW, COL_BLUE));
-  txt_puts(" karabas gopher \x94\x30 ");                // "Ф0" in CP866
-  txt_attr(ATTR(COL_WHITE, COL_BLACK));
-  txt_goto(0, 2);
-  txt_puts("\x8f\xe0\xa8\xa2\xa5\xe2, TS-Conf!");      // "Привет" in CP866
+  kbd_init();
   __asm__("ei");
-  for (;;) {
-    txt_goto(0, 4);
-    txt_puts("ticks ");
-    put_u16(ticks);
-    __asm__("halt");
-  }
+
+  cfg_defaults();
+  r = cfg_mount();
+  if (r)
+    settings_msg(m_nosd, r);
+  else if ((r = cfg_load()) == FR_NO_FILE || r == FR_NO_PATH)
+    settings_msg(m_nofile, 0xFF);
+  else if (r)
+    settings_msg(m_err, r);
+  else
+    settings_msg(m_ok, 0xFF);
+  settings_run();
 }

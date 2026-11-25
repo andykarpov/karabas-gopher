@@ -2,7 +2,6 @@
 #include <string.h>
 #include "ts.h"
 #include "text.h"
-#include "font866.h"
 
 // PWM levels of the TS-Conf palette (bit 15 = 0): 0..24 per channel
 #define C(r, g, b) (uint16_t)(((r) << 10) | ((g) << 5) | (b))
@@ -20,9 +19,7 @@ void txt_init(void)
   uint8_t i;
   volatile uint16_t *cram = (volatile uint16_t *)(0xC000 + 15 * 16 * 2);
 
-  TS_PAGE3 = PG_FONT;
-  memcpy(WIN3, font866, 2048);
-
+  // the font is loaded into PG_FONT by the SPG loader (Makefile)
   TS_FMADDR = FM_EN | (0xC000 >> 12);   // window 3 writes go to the CRAM
   for (i = 0; i < 16; i++)
     cram[i] = palette[i];
@@ -67,4 +64,36 @@ void txt_putc(char c)
 void txt_puts(const char *s)
 {
   while (*s) txt_putc(*s++);
+}
+
+void txt_fill(uint8_t x, uint8_t y, uint8_t n, char c, uint8_t attr)
+{
+  uint8_t *p;
+  if (y >= TXT_ROWS || x >= TXT_COLS) return;
+  if (n > TXT_COLS - x) n = TXT_COLS - x;
+  TS_PAGE3 = PG_TEXT;
+  p = WIN3 + y * TXT_LINE + x;
+  memset(p, c, n);
+  memset(p + TXT_ATTR, attr, n);
+}
+
+// at most w characters of s, the rest of the w cells filled with spaces; returns the length shown
+uint8_t txt_print(uint8_t x, uint8_t y, uint8_t w, uint8_t attr, const char *s)
+{
+  uint8_t *p, i = 0;
+  if (y >= TXT_ROWS || x >= TXT_COLS) return 0;
+  if (w > TXT_COLS - x) w = TXT_COLS - x;
+  TS_PAGE3 = PG_TEXT;
+  p = WIN3 + y * TXT_LINE + x;
+  for (; i < w && s[i]; i++) p[i] = (uint8_t)s[i];
+  if (i < w) memset(p + i, ' ', w - i);
+  memset(p + TXT_ATTR, attr, w);
+  return i;
+}
+
+void txt_set_attr(uint8_t x, uint8_t y, uint8_t attr)
+{
+  if (y >= TXT_ROWS || x >= TXT_COLS) return;
+  TS_PAGE3 = PG_TEXT;
+  WIN3[y * TXT_LINE + TXT_ATTR + x] = attr;
 }

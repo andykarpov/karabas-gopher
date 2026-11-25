@@ -11,3 +11,6 @@ void txt_goto(uint8_t x, uint8_t y);
 void txt_attr(uint8_t attr);
 void txt_putc(char c);
 void txt_puts(const char *s);
+void txt_fill(uint8_t x, uint8_t y, uint8_t n, char c, uint8_t attr);
+uint8_t txt_print(uint8_t x, uint8_t y, uint8_t w, uint8_t attr, const char *s);
+void txt_set_attr(uint8_t x, uint8_t y, uint8_t attr);

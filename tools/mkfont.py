@@ -49,6 +49,14 @@ def main():
     out = bytearray(2048)
     q = umap.get(ord('?'))
     missing = []
+    # CP437 glyphs of the control codes the UI uses: arrows and triangles
+    ctl = {0x10: 0x25BA, 0x11: 0x25C4, 0x18: 0x2191, 0x19: 0x2193, 0x1A: 0x2192, 0x1B: 0x2190,
+           0x1E: 0x25B2, 0x1F: 0x25BC}
+    for c, u in ctl.items():
+        if u in umap:
+            out[c * 8: c * 8 + 8] = glyphs[umap[u]][:8]
+        else:
+            missing.append(c)
     for c in range(32, 256):
         u = ord(bytes([c]).decode('cp866'))
         g = umap.get(u, q)
