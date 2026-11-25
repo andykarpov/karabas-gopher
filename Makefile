@@ -7,7 +7,7 @@ SDCC    ?= sdcc
 SDAS    ?= sdasz80
 PY      ?= python3 -I
 CFLAGS  := -mz80 --std-sdcc11 --opt-code-size -Isrc -Isrc/fatfs -Isrc/net -Isrc/gopher -Ibuild
-LDFLAGS := -mz80 --no-std-crt0 --code-loc 0x0100 --data-loc 0x2000 -Wl-b_BANK1=0x14000 -Wl-b_BANK2=0x24000 -Wl-b_BANK3=0x34000
+LDFLAGS := -mz80 --no-std-crt0 --code-loc 0x0100 --data-loc 0x2000 -Wl-b_BANK1=0x14000 -Wl-b_BANK2=0x24000 -Wl-b_BANK3=0x34000 -Wl-b_BANK4=0x44000
 HOSTCC  ?= gcc
 SJASM   ?= /opt/sjasmplus/sjasmplus
 
@@ -15,13 +15,15 @@ SJASM   ?= /opt/sjasmplus/sjasmplus
 # Memory map in src/bank.h: common code in window 0, banks of 32 KB at #4000-#BFFF.
 COMMON  := main.c text.c names.c ini.c netplat.c
 BANK1   := sd.c config.c bm.c dl.c fatfs/ff.c fatfs/ffunicode.c
-BANK2   := settings.c ui.c netui.c browser.c player.c kbd.c kbd_hw.c edit.c gopher/url.c gopher/menu.c gopher/cp.c
+BANK2   := settings.c ui.c netui.c browser.c player.c viewer.c kbd.c kbd_hw.c edit.c gopher/url.c gopher/menu.c gopher/cp.c
+BANK4   := pic.c
 BANK3   := net/net.c net/gs.c net/at.c net/esp_at_parse.c net/tr_ts.c net/zifi32.c gopher/gopher.c gopher/doc.c
-SRCS    := $(COMMON) $(BANK1) $(BANK2) $(BANK3)
+SRCS    := $(COMMON) $(BANK1) $(BANK2) $(BANK3) $(BANK4)
 OBJS    := $(addprefix build/,$(SRCS:.c=.rel))
 $(addprefix build/,$(BANK1:.c=.rel)): BANKFLAGS = --codeseg BANK1 --constseg BANK1
 $(addprefix build/,$(BANK2:.c=.rel)): BANKFLAGS = --codeseg BANK2 --constseg BANK2
 $(addprefix build/,$(BANK3:.c=.rel)): BANKFLAGS = --codeseg BANK3 --constseg BANK3
+$(addprefix build/,$(BANK4:.c=.rel)): BANKFLAGS = --codeseg BANK4 --constseg BANK4
 HOST_TESTS := kbd edit ini
 FONT_PSF ?= /usr/share/consolefonts/FullCyrSlav-VGA8.psf.gz
 
@@ -78,6 +80,7 @@ test: build/at_host | build
 	iconv -f UTF-8 -t CP866 tests/host/test_dl.c > build/test_dl.866.c
 	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -Isrc -Isrc/fatfs -o build/test_dl build/test_dl.866.c src/dl.c src/fatfs/ff.c src/fatfs/ffunicode.c && ./build/test_dl build/dl.img
 	fsck.fat -n build/dl.img
+	$(HOSTCC) -std=c11 -Wall -Wextra -O1 -DHOST -Itests/host/shim -Isrc -o build/pic_host tests/host/pic_host.c src/pic.c
 	$(PY) -m unittest discover -s tests -p 'test_*.py'
 
 emu: build/gopher.spg

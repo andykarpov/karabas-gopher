@@ -134,17 +134,21 @@ void ui_hint(uint8_t x, uint8_t y, uint8_t w, uint8_t a, uint8_t ak, const char 
   if (w) txt_fill(x, y, w, ' ', a);
 }
 
-uint16_t ui_key(void)
+// a key, or K_NONE after `frames` frames (0xFFFF: no limit)
+uint16_t ui_key_to(uint16_t frames)
 {
-  uint16_t k;
+  uint16_t k, t0 = ticks;
   for (;;) {
     if ((k = kbd_get()) && !player_key(k)) break;   // F7 / F8: the player, from any screen
+    if (frames != 0xFFFF && (uint16_t)(ticks - t0) >= frames) return K_NONE;
     tick();
     __asm__("halt");
   }
   if (k == K_INS) { kbd.rus ^= 1; ui_layout(); }
   return k;
 }
+
+uint16_t ui_key(void) { return ui_key_to(0xFFFF); }
 
 static void draw_edit(const edit_t *e, uint8_t x, uint8_t y, uint8_t hidden)
 {

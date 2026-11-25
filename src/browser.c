@@ -10,6 +10,8 @@
 #include "bm.h"
 #include "dl.h"
 #include "player.h"
+#include "viewer.h"
+#include "pic.h"
 #include "gopher/gopher.h"
 #include "gopher/url.h"
 #include "gopher/menu.h"
@@ -101,6 +103,13 @@ static void bar_view(void)
 
 void browse_progress(void) BANKED
 {
+  if (vw_loading) {                          // the first picture of the viewer
+    uint32_t k = gopher_bytes >> 10;
+    ui_num(disp, "Картинка: ", (int16_t)(k > 30000 ? 30000 : k));
+    strcat(disp, " КБ   (Esc \xc4 прервать)");
+    bar(disp);
+    return;
+  }
   if (gopher_saving >= 2) { player_draw(); return; }   // a track loads: the player part shows it
   uint32_t k = gopher_bytes >> 10;           // whole KB: no 32-bit printf
   uint16_t dt = ticks - gopher_t0;
@@ -205,6 +214,7 @@ static void hint(void)
       case '0': h = "~Enter~ читать  ~F10~ скачать  ~BS~ назад"; break;
       default: {
         uint8_t f = player_format(it.sel, it.slen);
+        if (pic_format(it.sel, it.slen)) { h = "~Enter~ смотреть (~S~ слайдшоу)  ~F10~ скачать  ~BS~ назад"; break; }
         h = !f ? "~Enter~ / ~F10~ скачать  ~BS~ назад" :
             player_can(f) ? "~Enter~ играть  ~F10~ скачать  ~BS~ назад" :
             f == PF_MOD ? "~F10~ скачать (играть: GS или ZiFi32)" : "~F10~ скачать (играть: ZiFi32 0.6.4+)";
@@ -458,9 +468,44 @@ static void play_menu(void)
   if (r != G_OK) status(play_error(r), A_STAT);
 }
 
+static const char *pic_error(uint8_t r)
+{
+  if (r == VW_PIC + PICE_SIZE) return "Картинка не того размера или оборвана";
+  if (r == VW_PIC + PICE_BMP) return "Такой BMP не показать: нужен 4 / 8 бит без сжатия, до 360x288";
+  if (r == G_BIG) return "Картинка больше 2 МБ";
+  return fetch_error(r);
+}
+
+// Enter on a picture: the pictures of this menu, from the selected one, in the viewer
+static void view_menu(void)
+{
+  gitem_t it;
+  uint16_t i, rows = gopher_rows();
+  uint8_t at = 0, r, k;
+  viewer_clear();
+  for (i = 0; i < rows; i++) {
+    if (!row_item(i, &it) || !menu_link(it.type) || !pic_format(it.sel, it.slen)) continue;
+    memset(&ui_go, 0, sizeof(ui_go));
+    for (k = 0; k < it.hlen && k < URL_HOST - 1; k++) ui_go.host[k] = it.host[k];
+    if (!ui_go.host[0]) memcpy(ui_go.host, cur.u.host, URL_HOST);
+    ui_go.port = it.port;
+    ui_go.type = it.type;
+    memcpy(ui_go.sel, it.sel, it.slen);
+    ui_go.sel[it.slen] = 0;
+    cp_conv(cfg.charset, it.disp, it.dlen, name, sizeof(name) - 1);
+    if (i == cur.sel) at = vw_count;
+    if (!viewer_add(&ui_go, name)) break;
+  }
+  r = viewer_run(at);
+  draw_all();
+  if (r) status(pic_error(r), A_STAT);
+}
+
 static void open_sel(void)
 {
   gitem_t it;
+  if (cur.mode == M_MENU && cur.sel != 0xFFFF && row_item(cur.sel, &it) && it.type != '1' &&
+      it.type != '7' && pic_format(it.sel, it.slen)) { view_menu(); return; }
   if (cur.mode == M_MENU && cur.sel != 0xFFFF && row_item(cur.sel, &it) && it.type != '1' &&
       it.type != '7' && player_format(it.sel, it.slen)) {
     if (player_can(player_format(it.sel, it.slen))) play_menu();

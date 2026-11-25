@@ -13,7 +13,6 @@ typedef struct {                        // 256 bytes: 64 a page, 2 pages
   uint16_t port;
   char type;
 } track_t;
-#define PL_MAX 128
 
 uint8_t pl_state, pl_count, pl_cur;
 static uint16_t pl_t0, pl_played;       // ticks: the start of the current run, frames played before it
@@ -21,25 +20,45 @@ static uint8_t pl_loading, pl_trk, last_sec = 0xFF;   // pl_trk: the track plays
 static gurl_t pu;                       // RAM: goes to bank 3
 static char pname[PL_NAME];
 
-static track_t *entry(uint8_t i)
+static track_t *entry(uint8_t pg, uint8_t i)
 {
-  PAGE3(PG_LIST + (i >> 6));
+  PAGE3(pg + (i >> 6));
   return (track_t *)(WIN3 + ((uint16_t)(i & 63) << 8));
 }
 
-void player_clear(void) { pl_count = 0; }
+// ---- lists of links (the play list, the pictures of a menu): 256-byte entries, 2 pages from pg
 
-uint8_t player_add(const gurl_t *u, const char *name)
+uint8_t mlist_put(uint8_t pg, uint8_t i, const gurl_t *u, const char *name)
 {
   track_t *t;
-  if (pl_count >= PL_MAX || strlen(u->host) >= PL_HOST || strlen(u->sel) >= PL_SEL) return 0;
-  t = entry(pl_count++);
+  if (i >= PL_MAX || strlen(u->host) >= PL_HOST || strlen(u->sel) >= PL_SEL) return 0;
+  t = entry(pg, i);
   strcpy(t->host, u->host);
   strcpy(t->sel, u->sel);
   strncpy(t->name, name, PL_NAME - 1);
   t->name[PL_NAME - 1] = 0;
   t->port = u->port;
   t->type = u->type;
+  return 1;
+}
+
+void mlist_get(uint8_t pg, uint8_t i, gurl_t *u, char *name)
+{
+  track_t *t = entry(pg, i);
+  memset(u, 0, sizeof(*u));
+  strcpy(u->host, t->host);
+  strcpy(u->sel, t->sel);
+  u->port = t->port;
+  u->type = t->type;
+  strcpy(name, t->name);
+}
+
+void player_clear(void) { pl_count = 0; }
+
+uint8_t player_add(const gurl_t *u, const char *name)
+{
+  if (!mlist_put(PG_LIST, pl_count, u, name)) return 0;
+  pl_count++;
   return 1;
 }
 
@@ -182,20 +201,13 @@ static void find_ts(uint16_t len)
 
 uint8_t player_play(uint8_t i)
 {
-  track_t *t;
   uint8_t r;
   uint8_t fmt;
   if (i >= pl_count) return G_OK;
   silence();
   pl_cur = i;
-  t = entry(i);
-  fmt = player_format(t->sel, (uint8_t)strlen(t->sel));
-  memset(&pu, 0, sizeof(pu));
-  strcpy(pu.host, t->host);
-  strcpy(pu.sel, t->sel);
-  pu.port = t->port;
-  pu.type = t->type;
-  strcpy(pname, t->name);
+  mlist_get(PG_LIST, i, &pu, pname);
+  fmt = player_format(pu.sel, (uint8_t)strlen(pu.sel));
   pl_state = PL_STOP;
   if (!player_can(fmt)) { player_draw(); return PL_NOENG; }
   pl_loading = 1;

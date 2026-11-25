@@ -6,6 +6,7 @@ enum { COL_BLACK, COL_BLUE, COL_RED, COL_MAGENTA, COL_GREEN, COL_CYAN, COL_YELLO
 #define ATTR(ink, paper) (uint8_t)(((paper) << 4) | (ink))
 
 void txt_init(void);
+void txt_mode(void);                  // back to the text mode (registers + palette 15)
 void txt_clear(uint8_t attr);
 void txt_goto(uint8_t x, uint8_t y);
 void txt_attr(uint8_t attr);

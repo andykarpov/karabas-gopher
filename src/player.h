@@ -12,6 +12,10 @@ extern uint8_t pl_state, pl_count, pl_cur;
 #define PL_HOST  48
 #define PL_SEL   160
 #define PL_NAME  44
+#define PL_MAX   128
+// a list of links in 2 pages from pg (256-byte entries); RAM pointers
+uint8_t mlist_put(uint8_t pg, uint8_t i, const gurl_t *u, const char *name);
+void mlist_get(uint8_t pg, uint8_t i, gurl_t *u, char *name);
 void player_clear(void);
 uint8_t player_add(const gurl_t *u, const char *name);
 #define PL_NOTPT3 0x20                  // player_play: the file is not a PT3 module

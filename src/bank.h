@@ -12,3 +12,4 @@
 #define BANK_FS   1      // FatFs, SD, INI, config
 #define BANK_UI   2      // screens
 #define BANK_NET  3      // network: transports, AT driver
+#define BANK_PIC  4      // picture decoders

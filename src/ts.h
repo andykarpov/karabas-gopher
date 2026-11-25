@@ -5,6 +5,10 @@
 
 __sfr __banked __at(0x00AF) TS_VCONFIG;
 __sfr __banked __at(0x01AF) TS_VPAGE;
+__sfr __banked __at(0x02AF) TS_GXOFFSL;
+__sfr __banked __at(0x03AF) TS_GXOFFSH;
+__sfr __banked __at(0x04AF) TS_GYOFFSL;
+__sfr __banked __at(0x05AF) TS_GYOFFSH;
 __sfr __banked __at(0x06AF) TS_TSCONFIG;
 __sfr __banked __at(0x07AF) TS_PALSEL;
 __sfr __banked __at(0x0FAF) TS_BORDER;
@@ -36,6 +40,10 @@ __sfr __banked __at(0x2AAF) TS_INTMASK;
 #define PG_NETBUF     0x53    // the AT receive ring / ZiFi32 chunks (1 KB)
 #define PG_MUSIC      0x54    // 3 pages: the PT3 player at #4000 (SPG) + the module at PT3_MOD
 #define PG_LIST       0x57    // 2 pages: the play list (player.c)
+#define PG_PICLIST    0x59    // 2 pages: the pictures of a menu (viewer.c)
+#define PG_PICPAL     0x5B    // the palettes of the two picture buffers (512 bytes each)
+#define PG_PICA       0x60    // 16 pages: picture buffer A (16c: VPAGE multiple of 8, 256c: of 16)
+#define PG_PICB       0x70    // 16 pages: picture buffer B (the next one in a slide show)
 #define PG_BIG        0x80    // 128 pages (2 MB): a tracker module on its way to the GS / ZiFi32
 #define BIG_MAX       0x200000UL
 #define PT3_MOD       0x5200  // the module in windows 1..3 while the player runs (2 players before it)
